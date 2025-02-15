@@ -1,0 +1,47 @@
+# Ignore simulation output files
+*.vcd
+*.vvp
+*.o
+
+# Ignore build artifacts
+build/
+*.log
+*.dump
+
+# Ignore editor-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore temporary files
+*.tmp
+*.bak
+
+# Ignore macOS-specific files
+.DS_Store
+
+# Ignore Windows-specific files
+Thumbs.db
+
+# Ignore Icarus Verilog compiled files
+*.ivl
+*.vpi
+
+# Ignore Verilog waveform files
+*.fst
+*.lxt
+
+# Ignore generated files from synthesis tools
+*.syn
+*.map
+*.ngc
+*.edif
+*.bit
+
+# Ignore GitHub Actions cache
+.github/workflows/.cache/
+
+# Ignore local configuration files
+*.local
+.env

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Icarus Verilog
+        run: sudo apt-get install -y iverilog
+
+      - name: Run ALU testbench
+        run: |
+          cd riscv_cpu_project/tests
+          iverilog -o alu_tb alu_tb.sv ../src/alu.sv
+          vvp alu_tb
+
+      - name: Run CPU testbench
+        run: |
+          cd riscv_cpu_project/testbenches
+          iverilog -o cpu_tb cpu_tb.sv ../src/cpu_core.sv ../src/alu.sv ../src/cache.sv ../src/cu.sv ../src/fpu.sv ../src/mmu.sv ../src/register_file.sv
+          vvp cpu_tb
