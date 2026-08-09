@@ -1,57 +1,44 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install Icarus Verilog
         run: |
           sudo apt-get update
           sudo apt-get install -y iverilog
-
       - name: Check repository structure
         run: |
           echo "Repository root:"
           pwd
-
           echo
           echo "RTL files:"
           find rtl -maxdepth 1 -type f -name "*.sv" -print
-
           echo
           echo "Testbenches:"
           find tests -maxdepth 1 -type f \( -name "*.sv" -o -name "*.v" \) -print 2>/dev/null || true
-
       - name: Compile ALU RTL
         run: |
           iverilog -g2012 -t null rtl/alu.sv
-
       - name: Compile Control Unit RTL
         run: |
           iverilog -g2012 -t null rtl/cu.sv
-
       - name: Compile MMU RTL
         run: |
           iverilog -g2012 -t null rtl/mmu.sv
-
       - name: Compile Register File RTL
         run: |
           iverilog -g2012 -t null rtl/register_file.sv
-
       - name: Compile Cache RTL
         run: |
           iverilog -g2012 -t null rtl/cache.sv
-
       - name: Compile FPU RTL
         run: |
           iverilog -g2012 -t null \
@@ -60,3 +47,8 @@ jobs:
             rtl/fpu_sub.sv \
             rtl/fpu_mul.sv \
             rtl/fpu_div.sv
+      - name: Run ALU functional testbench (regression gate)
+        run: |
+          cd tests
+          iverilog -o alu_tb_run alu_tb.sv ../rtl/alu.sv
+          vvp alu_tb_run
