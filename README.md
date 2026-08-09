@@ -1,41 +1,44 @@
-# RISC-V CPU Project
+# RISC-V CPU — IC-Block Verification Portfolio
 
-This project simulates a simple RISC-V CPU core with an ALU, FPU, cache, MMU, and register file. The design is implemented in SystemVerilog and includes testbenches for each module.
+Scoped RV32I subset (R-type ALU ops, LW, SW) verified block-by-block using
+a professional UVM methodology, targeting the skillset for Digital
+Verification Engineer roles: constrained-style stimulus generation,
+scoreboard-based self-checking, functional coverage, and documented
+toolchain engineering decisions.
 
-## Project Structure
-riscv_cpu_project/
-├── src/ # Source files for the CPU core
-├── tests/ # Testbenches for each module
-├── .github/ # GitHub Actions workflow
-├── README.md # Project documentation
-├── .gitignore # Files to ignore in Git
-├── Dockerfile # Docker configuration for containerized execution
-└── relevant_improvements.md # Suggested improvements and enhancements
+See [`verification_plan.md`](./verification_plan.md) for full scope,
+findings, and toolchain rationale.
 
-## Prerequisites
+## Verified blocks
 
-- SystemVerilog simulator (e.g., [Icarus Verilog](http://iverilog.icarus.com/))
-- Docker (optional, for containerized execution)
-- Git (for version control)
+| Block | RTL | UVM env | Status |
+|---|---|---|---|
+| ALU | `rtl/alu.sv` | `alu_agent` / `alu_scoreboard` / `alu_coverage` | ✅ 101/101 matches, coverage closed |
+| Control Unit | `rtl/cu.sv` | `cu_agent` / `cu_scoreboard` | ✅ 101/101 matches |
 
-## Running the Simulation
+## Toolchain
 
-### Using Icarus Verilog
+Simulated with **Questa - Altera FPGA Starter Edition** (Siemens EDA
+simulation kernel, free-licensed via Altera Self-Service Licensing
+Center). Chosen over Verilator after documented compatibility
+investigation — see verification plan for details. Note: the RTL itself
+targets no specific FPGA or ASIC technology library; the simulator choice
+is a licensing/tooling decision independent of the design's target
+technology.
 
-Install Icarus Verilog:
-   
-   sudo apt-get install iverilog
+## Running the tests
 
-Compile and run the testbench:
-    cd riscv_cpu_project/tests
-    iverilog -o alu_tb alu_tb.sv ../src/alu.sv
-    vvp alu_tb
+```bash
+./run_sim.sh alu    # ALU block
+./run_sim.sh cu     # Control Unit block
+```
 
-Repeat for other testbenches.
+Requires a Questa/Siemens EDA license (`SALT_LICENSE_SERVER` env var set).
 
-Using Docker
-Build the Docker image:
-    docker build -t riscv_cpu_project -f Dockerfile .
+## Roadmap
 
-Run the simulation in a container:
-    docker run -it riscv_cpu_project
+- [ ] MMU / Cache / Register File block-level UVM environments
+- [ ] SVA assertion layer (bind-based, per-module)
+- [ ] Formal verification (SymbiYosys) on ALU/CU
+- [ ] CI regression (GitHub Actions)
+- [ ] System-level `cpu_core` integration env (Phase 2)

@@ -44,4 +44,8 @@ Thumbs.db
 
 # Ignore local configuration files
 *.local
-.env
+.envsim/work/
+sim/transcript
+sim/modelsim.ini
+sim/output/
+*.log

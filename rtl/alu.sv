@@ -1,42 +1,36 @@
 module alu (
-    input [31:0] A,  // Operand A
-    input [31:0] B,  // Operand B
-    input [2:0] Op,  // Operation code
-    input is_fp,     // Floating-point operation flag
-    output reg [31:0] Result  // Result of operation
+    input  [31:0] A,
+    input  [31:0] B,
+    input  [3:0]  Op,
+    output reg [31:0] Result,
+    output            zero,
+    output            overflow
 );
 
-    wire [31:0] fp_result;
-    wire [31:0] int_result;
-    
-    // Integer ALU operations
+    reg overflow_int;
+
     always @(*) begin
+        overflow_int = 1'b0;
         case (Op)
-            3'b000: int_result = A + B;      // ADD
-            3'b001: int_result = A - B;      // SUB
-            3'b010: int_result = A & B;      // AND
-            3'b011: int_result = A | B;      // OR
-            3'b100: int_result = A ^ B;      // XOR
-            3'b101: int_result = A << B;     // Shift Left
-            3'b110: int_result = A >>> B;    // Shift Right Arithmetic
-            default: int_result = 32'b0;     // Default case
+            4'b0010: begin // ADD
+                Result = A + B;
+                overflow_int = (A[31] == B[31]) && (Result[31] != A[31]);
+            end
+            4'b0110: begin // SUB
+                Result = A - B;
+                overflow_int = (A[31] != B[31]) && (Result[31] != A[31]);
+            end
+            4'b0000: Result = A & B;                                   // AND
+            4'b0001: Result = A | B;                                   // OR
+            4'b0111: Result = ($signed(A) < $signed(B)) ? 32'd1 : 32'd0; // SLT
+            4'b0011: Result = A ^ B;                                   // XOR
+            4'b0100: Result = A << B[4:0];                             // SLL
+            4'b0101: Result = $signed(A) >>> B[4:0];                   // SRA
+            default: Result = 32'b0;
         endcase
     end
 
-    // Instantiate the FPU for floating-point operations
-    fpu fpu_unit (
-        .A(A),
-        .B(B),
-        .Op(Op),
-        .Result(fp_result)
-    );
-
-    // Select output based on operation type
-    always @(*) begin
-        if (is_fp)
-            Result = fp_result;
-        else
-            Result = int_result;
-    end
+    assign zero     = (Result == 32'b0);
+    assign overflow = overflow_int;
 
 endmodule
