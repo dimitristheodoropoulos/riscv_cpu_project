@@ -11,6 +11,7 @@ import uvm_pkg::*;
 `include "cu_scoreboard.sv"
 `include "cu_env.sv"
 `include "cu_test.sv"
+`include "../../sva/cu_assertions.sv"
 
 module tb_top_cu;
   logic clk;
@@ -34,6 +35,12 @@ module tb_top_cu;
     .reg_write(intf.reg_write),
     .imm_ext(intf.imm_ext)
   );
+
+  bind cu cu_assertions u_cu_sva (
+    .clk(clk), .instruction(instruction), .ALU_op(ALU_op),
+    .rs1(rs1), .rs2(rs2), .rd(rd),
+    .mem_read(mem_read), .mem_write(mem_write), .reg_write(reg_write)
+);
 
   initial begin
     uvm_config_db#(virtual cu_if)::set(null, "*", "vif", intf);

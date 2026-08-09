@@ -12,6 +12,7 @@ import uvm_pkg::*;
 `include "alu_coverage.sv"
 `include "alu_env.sv"
 `include "alu_test.sv"
+`include "../../sva/alu_assertions.sv"
 
 module tb_top;
   logic clk;
@@ -34,6 +35,10 @@ module tb_top;
     .zero(intf.zero),
     .overflow(intf.overflow)
   );
+
+  bind alu alu_assertions u_alu_sva (
+    .clk(clk), .A(A), .B(B), .Result(Result), .Op(Op), .zero(zero), .overflow(overflow)
+);
 
   initial begin
     // Pass Virtual Interface to UVM DB
