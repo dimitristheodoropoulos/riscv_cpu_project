@@ -72,3 +72,5 @@ formal/*/model/
 # Ignore Python virtual environment
 
 venv/
+tests/alu_tb_run
+tests/*_run
