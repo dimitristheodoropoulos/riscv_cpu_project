@@ -52,3 +52,8 @@ jobs:
           cd tests
           iverilog -o alu_tb_run alu_tb.sv ../rtl/alu.sv
           vvp alu_tb_run
+      - name: Run Control Unit functional testbench (regression gate)
+        run: |
+          cd tests
+          iverilog -o cu_tb_run cu_tb.sv ../rtl/cu.sv
+          vvp cu_tb_run

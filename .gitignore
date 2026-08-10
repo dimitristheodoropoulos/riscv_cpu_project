@@ -74,3 +74,4 @@ formal/*/model/
 venv/
 tests/alu_tb_run
 tests/*_run
+tests/cu_tb_run
