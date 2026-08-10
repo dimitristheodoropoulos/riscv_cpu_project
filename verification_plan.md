@@ -118,3 +118,26 @@ multiple random seeds (via Questa's `-sv_seed`), logging pass/fail per
 seed and a summary count. This complements the single-run `run_sim.sh`
 by exercising a wider stimulus space per invocation and producing a
 pass/fail matrix suitable for CI integration.
+
+## Known gaps relative to production-grade scope
+
+This section tracks what remains open against the full verification
+methodology expected of a production IC verification flow, mapped to the
+target job description's key responsibilities:
+
+| JD requirement | Status | Gap |
+|---|---|---|
+| UVM environments from scratch | ✅ Done | ALU, CU blocks only — MMU, cache, register file, FPU, cpu_core have no UVM env yet |
+| Functional coverage to closure | ✅ ALU closed (8/8) | CU has no functional coverage yet; MMU/FPU/register_file/cpu_core untested |
+| Code coverage to closure | ⚠️ Tooling ready, not run | `run_sim.sh` supports `+cover=bcesf` via Questa; no code-coverage report has been generated yet for any block |
+| Constrained-random testing | ⚠️ Not achievable free | Verified during toolchain evaluation that no available free/open-source path supports real `rand`/`constraint` solving: Verilator crashes on class-based UVM constructs, and Questa Starter Edition gates `randomize()` behind the paid `svverification` feature. Current stimulus uses `$urandom`/`$urandom_range` instead — pseudo-random but unconstrained. A licensed simulator (Questa/Xcelium) would be required to close this gap properly. |
+| Assertion-based verification (SVA) | ⚠️ Written, not in CI | `sva/alu_assertions.sv` and `sva/cu_assertions.sv` exist and are bound in local Questa runs; not yet exercised in the GitHub Actions CI pipeline |
+| Formal methods | ⚠️ ALU only, not in CI | ALU formally verified (SymbiYosys + boolector, 4/4 properties PASS); CU and all other blocks have no formal target yet; formal is not run in CI |
+| Regression frameworks | ⚠️ Partial | `run_regression.sh` covers ALU/CU seed sweeps (Questa-side, local only); CI regression currently covers ALU and CU directed testbenches only (Icarus-side) |
+| System-level verification | ❌ Not started | `cpu_core.sv` has no verification at all; it also has known incomplete wiring (`cu` block not instantiated in top-level datapath) predating this verification effort |
+| VHDL proficiency | ❌ Not demonstrated | Entire project is SystemVerilog; no VHDL block exists to demonstrate mixed-language capability |
+
+This list is maintained deliberately rather than omitted, since an accurate
+account of verification scope and closure status is itself part of the
+"Specification Quality" and "Verification Closure" responsibilities this
+project is meant to demonstrate.
