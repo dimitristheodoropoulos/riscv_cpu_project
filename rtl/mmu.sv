@@ -1,32 +1,28 @@
 module mmu (
-    input [31:0] virtual_addr,  // Input: virtual address
-    input [31:0] data_in,       // Data to write to memory (if any)
-    input mem_read,             // Read enable
-    input mem_write,            // Write enable
-    output reg [31:0] data_out, // Data read from memory
-    output reg [31:0] physical_addr, // Translated physical address
-    output reg mem_ready        // Indicate memory operation is complete
+    input         clk,
+    input  [31:0] virtual_addr,
+    input  [31:0] data_in,
+    input         mem_read,
+    input         mem_write,
+    output reg [31:0] data_out,
+    output     [31:0] physical_addr,
+    output reg         mem_ready
 );
+    reg [31:0] memory [0:255];
 
-    reg [31:0] memory [0:255]; // A simple memory model (256 32-bit words)
+    assign physical_addr = virtual_addr; // direct mapping, unchanged
 
-    always @(*) begin
-        // Default values
-        data_out = 32'b0;
-        physical_addr = virtual_addr;  // For simplicity, assume no virtual-to-physical mapping (direct mapping)
-        mem_ready = 1'b0;
+    wire [7:0] mem_index = physical_addr[7:0]; // masked to 256-word range
 
-        // Memory Read
-        if (mem_read) begin
-            data_out = memory[physical_addr];  // Read from memory
-            mem_ready = 1'b1;
-        end
-        
-        // Memory Write
-        if (mem_write) begin
-            memory[physical_addr] = data_in;  // Write to memory
-            mem_ready = 1'b1;
-        end
+    // Synchronous write (real RAM behavior)
+    always @(posedge clk) begin
+        if (mem_write)
+            memory[mem_index] <= data_in;
     end
 
+    // Combinational read + ready
+    always @(*) begin
+        data_out  = mem_read ? memory[mem_index] : 32'b0;
+        mem_ready = mem_read || mem_write;
+    end
 endmodule

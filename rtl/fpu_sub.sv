@@ -1,10 +1,12 @@
 module fp_sub (
-    input [31:0] a,   // Operand A (IEEE-754 single-precision)
-    input [31:0] b,   // Operand B (IEEE-754 single-precision)
-    output [31:0] result  // Result of the subtraction
+    input  [31:0] a,
+    input  [31:0] b,
+    output [31:0] result
 );
 
-    wire [31:0] b_neg = {~b[31], b[30:0]};  // Invert the sign bit for subtraction
+    wire [31:0] b_neg;
+
+    assign b_neg = {~b[31], b[30:0]};
 
     fp_add add_op (
         .a(a),

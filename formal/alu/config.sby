@@ -12,6 +12,6 @@ read -formal alu_formal_assertions.sv
 prep -top alu_formal_top
 
 [files]
-alu_formal_top.sv
-../rtl/alu.sv
-alu_formal_assertions.sv
+src/alu_formal_top.sv
+../../rtl/alu.sv
+src/alu_formal_assertions.sv

@@ -1,77 +1,135 @@
-# Ignore simulation output files
+# ============================================================
+# RISC-V CPU Verification Project — Git Ignore
+# ============================================================
+
+# ------------------------------------------------------------
+# Simulation artifacts
+# ------------------------------------------------------------
 
 *.vcd
-*.vvp
-*.o
-
-# Ignore build artifacts
-
-build/
-*.log
-*.dump
-
-# Ignore editor-specific files
-
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Ignore temporary files
-
-*.tmp
-*.bak
-
-# Ignore macOS-specific files
-
-.DS_Store
-
-# Ignore Windows-specific files
-
-Thumbs.db
-
-# Ignore Icarus Verilog compiled files
-
-*.ivl
-*.vpi
-
-# Ignore Verilog waveform files
-
 *.fst
 *.lxt
+*.vvp
+*.wlf
+*.trn
+*.dump
+*.log
+transcript
 
-# Ignore generated files from synthesis tools
+# Questa / ModelSim
+modelsim.ini
+work/
+sim/
 
+# Icarus Verilog
+*.ivl
+*.vpi
+*_run
+tests/*_run
+
+# Generated simulation output
+scoreboard_in.txt
+scoreboard_out.txt
+
+
+# ------------------------------------------------------------
+# Build / generated artifacts
+# ------------------------------------------------------------
+
+build/
+*.o
+
+# Synthesis / implementation generated files
 *.syn
 *.map
 *.ngc
 *.edif
 *.bit
 
-# Ignore GitHub Actions cache
 
-.github/workflows/.cache/
+# ------------------------------------------------------------
+# Formal verification
+# ------------------------------------------------------------
 
-# Ignore local configuration files
-
-*.local
-.env
-
-# Ignore simulation / ModelSim artifacts
-
-sim/work/
-sim/transcript
-sim/modelsim.ini
-sim/output/
-
-# Ignore formal verification generated results
-
-formal/alu/
+# IMPORTANT:
+# Keep formal configuration and RTL/assertion sources tracked.
+#
+# Tracked:
+#   formal/*/config.sby
+#   formal/*/src/
+#
+# Generated formal outputs:
 formal/*/model/
+formal/*/work/
+formal/*/engine_*/
 
-# Ignore Python virtual environment
+# SymbiYosys/Yosys generated reports/state
+formal/*/status
+formal/*/status.sqlite
+formal/*/*.xml
+formal/*/PASS
+
+
+# ------------------------------------------------------------
+# Python
+# ------------------------------------------------------------
 
 venv/
-tests/alu_tb_run
-tests/*_run
-tests/cu_tb_run
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.pytest_cache/
+.mypy_cache/
+
+
+# ------------------------------------------------------------
+# IDE / editor
+# ------------------------------------------------------------
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+*.bak
+
+
+# ------------------------------------------------------------
+# Environment / local configuration
+# ------------------------------------------------------------
+
+.env
+*.local
+
+
+# ------------------------------------------------------------
+# OS-specific files
+# ------------------------------------------------------------
+
+.DS_Store
+Thumbs.db
+
+
+# ------------------------------------------------------------
+# GitHub Actions local cache
+# ------------------------------------------------------------
+
+.github/workflows/.cache/
+# Formal generated logs
+formal/*/logfile.txt
+
+# SymbiYosys generated run directories
+formal/*/config/
+
+# SymbiYosys generated run directories
+
+# Root-level generated simulation outputs
+build.log
+sim_output.log
+transcript
+
+# Generated Python test artifacts
+.pytest_cache/

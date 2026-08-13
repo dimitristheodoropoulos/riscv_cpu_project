@@ -1,17 +1,18 @@
 module fpu (
-    input clk,
-    input rst,
-    input [31:0] a,   // Operand A (IEEE-754 single-precision)
-    input [31:0] b,   // Operand B (IEEE-754 single-precision)
-    input [2:0] op,   // Operation code (000 = ADD, 001 = SUB, 010 = MUL, 011 = DIV)
-    output reg [31:0] result,  // Result of operation
-    output reg ready           // Ready signal (operation complete)
+    input        clk,
+    input        rst,
+    input  [31:0] a,
+    input  [31:0] b,
+    input  [2:0]  op,
+    output reg [31:0] result,
+    output reg        ready
 );
 
-    // Signals for operations
-    wire [31:0] fadd_result, fsub_result, fmul_result, fdiv_result;
+    wire [31:0] fadd_result;
+    wire [31:0] fsub_result;
+    wire [31:0] fmul_result;
+    wire [31:0] fdiv_result;
 
-    // Instantiate the floating-point operation modules
     fp_add add_op (
         .a(a),
         .b(b),
@@ -36,21 +37,32 @@ module fpu (
         .result(fdiv_result)
     );
 
-    // Control logic to select the operation based on the op input
     always @(posedge clk or posedge rst) begin
+
         if (rst) begin
-            result <= 32'b0;
-            ready <= 0;
-        end else begin
+
+            result <= 32'h00000000;
+            ready  <= 1'b0;
+
+        end
+        else begin
+
             case (op)
+
                 3'b000: result <= fadd_result;
                 3'b001: result <= fsub_result;
                 3'b010: result <= fmul_result;
                 3'b011: result <= fdiv_result;
-                default: result <= 32'b0;
+
+                default:
+                    result <= 32'h00000000;
+
             endcase
-            ready <= 1;
+
+            ready <= 1'b1;
+
         end
+
     end
 
 endmodule
