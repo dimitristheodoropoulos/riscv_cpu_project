@@ -1,23 +1,4 @@
-Ναι. Το `README.md` θέλει κυρίως **documentation cleanup και consistency**, όχι νέο feature.
 
-Έκανα τις εξής διορθώσεις στο παρακάτω version:
-
-* διορθώθηκαν τα headings/structure,
-* μπήκαν σωστά Markdown sections,
-* προστέθηκε το `docs/fpu_ieee754_verification_matrix.md`,
-* τεκμηριώνεται καθαρά το υπάρχον Python reference model:
-
-  * `reference/binary32.py`
-  * `reference/fpu_reference_model.py`
-  * `reference/scoreboard_bridge.py`
-* το FPU differential flow αποτυπώνεται ως **υλοποιημένο**, αλλά όχι ως verification closure,
-* Register File coverage γίνεται consistent με το `verification_plan.md`: **in progress**,
-* αφαιρούνται διατυπώσεις που μπορεί να φαίνονται σαν full IEEE-754 compliance,
-* ξεχωρίζει καθαρά **implemented infrastructure** από **verification closure**,
-* προστίθεται η πραγματική δομή των νέων αρχείων,
-* το README παραμένει portfolio-oriented και defensible.
-
-Μπορείς να αντικαταστήσεις **ολόκληρο** το `README.md` με το παρακάτω:
 
 ````markdown
 # RISC-V CPU — Digital Verification Portfolio
