@@ -462,19 +462,6 @@ initial begin
     // MUL invalid operation: infinity * zero
     // ============================================================
 
-    // This specifically targets:
-    //
-    //     else if ((a_is_inf && b_is_zero) ||
-    //              (b_is_inf && a_is_zero))
-    //
-    // in rtl/fpu_mul.sv line 179.
-    //
-    // IEEE-754:
-    //
-    //     infinity * zero = NaN
-    //
-    // The RTL returns canonical quiet NaN.
-
     // +Inf * +0 = NaN
     a  = 32'h7F800000;
     b  = 32'h00000000;
@@ -485,8 +472,6 @@ initial begin
     );
 
     // +0 * +Inf = NaN
-    //
-    // Exercises the opposite side of the OR condition.
     a  = 32'h00000000;
     b  = 32'h7F800000;
     op = OP_MUL;
@@ -533,7 +518,7 @@ initial begin
     // ============================================================
 
     // Smallest positive subnormal + smallest positive subnormal
-    // = 0x00000002 (still subnormal)
+    // = 0x00000002
     a  = 32'h00000001;
     b  = 32'h00000001;
     op = OP_ADD;
@@ -555,9 +540,6 @@ initial begin
     // Smallest normal - largest subnormal.
     //
     // 0x00800000 - 0x007FFFFF = 0x00000001
-    //
-    // Exercises exp_result == 1 while mant_diff[23] == 0
-    // during subtraction normalization.
     a  = 32'h00800000;
     b  = 32'h007FFFFF;
     op = OP_SUB;
@@ -567,10 +549,7 @@ initial begin
     );
 
     // Smallest normal result via subtraction:
-    // 2^-125 - 2^-126 = 2^-126 (0x00800000)
-    //
-    // Exercises exp_result == 1 with mant_diff[23] == 1
-    // at the normal-number boundary.
+    // 2^-125 - 2^-126 = 2^-126
     a  = 32'h01000000;
     b  = 32'h00800000;
     op = OP_SUB;
@@ -585,10 +564,6 @@ initial begin
     // ============================================================
 
     // MAX finite + MAX finite = +infinity
-    //
-    // 0x7F7FFFFF = maximum finite positive binary32 value.
-    //
-    // This forces the exponent overflow path in fp_add.sv.
     a  = 32'h7F7FFFFF;
     b  = 32'h7F7FFFFF;
     op = OP_ADD;
@@ -603,25 +578,6 @@ initial begin
     // ============================================================
 
     // MAX finite - (-MAX finite) = +infinity
-    //
-    // 0x7F7FFFFF - 0xFF7FFFFF
-    //
-    // Since fp_sub.sv implements subtraction as:
-    //
-    //     a + (-b)
-    //
-    // the second operand becomes +MAX finite and the ADD
-    // datapath produces an exponent overflow.
-    //
-    // This specifically targets the previously uncovered
-    // branch at rtl/fpu_add.sv line 582 in the
-    // /fpu_tb/dut/sub_op/add_op instance:
-    //
-    //     if (exp_result >= 8'hFF)
-    //
-    // Expected:
-    //
-    //     +infinity = 0x7F800000
     a  = 32'h7F7FFFFF;
     b  = 32'hFF7FFFFF;
     op = OP_SUB;
@@ -635,10 +591,6 @@ initial begin
     // ADD rounding carry boundary
     // ============================================================
 
-    // Existing targeted vector for the ADD rounding boundary.
-    //
-    // The rounded significand reaches the exponent boundary,
-    // exercising the carry/normalization path after rounding.
     a  = 32'h7EFFFFFF;
     b  = 32'h73400001;
     op = OP_ADD;
@@ -652,39 +604,17 @@ initial begin
     // ADD explicit mant_rounded_ext[24] carry coverage
     // ============================================================
 
-    // Target the exact branch:
-    //
-    //     if (mant_rounded_ext[24]) begin
-    //
-    // in rtl/fpu_add.sv line 553.
-    //
-    // Mathematical values:
-    //
-    //     0x3FFFFFFF = 2.0 - 2^-24
-    //     0x33800000 = 2^-24
+    // 0x3FFFFFFF = 2.0 - 2^-24
+    // 0x33800000 = 2^-24
     //
     // Therefore:
     //
     //     (2.0 - 2^-24) + 2^-24 = 2.0
     //
-    // The smaller operand is shifted by 24 positions.
-    // Its G bit becomes 1 while R/S are 0.
+    // This targets:
     //
-    // The larger significand has LSB = 1, so:
+    //     if (mant_rounded_ext[24]) begin
     //
-    //     round_up = G && (R || S || LSB)
-    //              = 1 && (0 || 0 || 1)
-    //              = 1
-    //
-    // Thus:
-    //
-    //     0xFFFFFF + 1 = 0x1000000
-    //
-    // which sets mant_rounded_ext[24].
-    //
-    // This must execute the rounding-carry branch and produce
-    // the normalized result 2.0 = 0x40000000.
-
     a  = 32'h3FFFFFFF;
     b  = 32'h33800000;
     op = OP_ADD;
@@ -698,7 +628,6 @@ initial begin
     // Invalid opcode coverage
     // ============================================================
 
-    // Invalid opcode: 100 should select the default case
     a  = 32'h3F800000;
     b  = 32'h40000000;
     op = 3'b100;
@@ -713,7 +642,7 @@ initial begin
     // MUL normalization coverage
     // ============================================================
 
-    // MUL normalization path: product[47] == 0
+    // product[47] == 0
     // 1.0 * 1.0 = 1.0
     a  = 32'h3F800000;
     b  = 32'h3F800000;
@@ -723,7 +652,7 @@ initial begin
         "FPU MUL normalization (product[47]==0)"
     );
 
-    // MUL normalization path: product[47] == 1
+    // product[47] == 1
     // 1.5 * 1.5 = 2.25
     a  = 32'h3FC00000;
     b  = 32'h3FC00000;
@@ -738,13 +667,6 @@ initial begin
     // MUL rounding overflow
     // ============================================================
 
-    // This vector provokes the rounded significand overflow path.
-    //
-    // a = 0x3FFFFFFE
-    // b = 0x3F800001
-    //
-    // The exact product is just below the 2.0 boundary and
-    // rounds upward to 2.0 under round-to-nearest-even.
     a  = 32'h3FFFFFFE;
     b  = 32'h3F800001;
     op = OP_MUL;
@@ -759,11 +681,6 @@ initial begin
     // ============================================================
 
     // MAX finite * 2.0 = +infinity
-    //
-    // 0x7F7FFFFF = maximum finite positive binary32 value
-    // 0x40000000 = 2.0
-    //
-    // This forces the exponent overflow path.
     a  = 32'h7F7FFFFF;
     b  = 32'h40000000;
     op = OP_MUL;
@@ -778,17 +695,56 @@ initial begin
     // ============================================================
 
     // ------------------------------------------------------------
-    // Subnormal result with subnormal_shift == 25
+    // NEW TARGET 1:
+    // subnormal_shift < 48 + rounding increment
+    // ------------------------------------------------------------
+
+    // NOTE:
+    //
+    // The previously suggested:
+    //
+    //     0x10000000 * 0x10000003
+    //
+    // does NOT produce subnormal_shift == 25.
+    //
+    // The corrected vector below keeps the exponent product at
+    // the required boundary and introduces enough significand
+    // fraction to force rounding upward.
+    //
+    //     0x20000000 = 2^-63
+    //     0x1F800003 ~= 2^-64 * (1 + 3*2^-23)
+    //
+    // Product is in the subnormal region with:
+    //
+    //     subnormal_shift = 25
+    //
+    // and the discarded portion causes:
+    //
+    //     increment = 1
+    //
+    // Expected:
+    //
+    //     0x00400002
+    a  = 32'h20000000;
+    b  = 32'h1F800003;
+    op = OP_MUL;
+    check_result(
+        32'h00400002,
+        "FPU MUL subnormal shift<48 rounding increment"
+    );
+
+
+    // ------------------------------------------------------------
+    // Existing shift-25 exact subnormal case
     // ------------------------------------------------------------
 
     // 2^-63 * 2^-64 = 2^-127
     //
-    // Encodings:
+    // This gives:
     //
-    //     2^-63 = 0x20000000
-    //     2^-64 = 0x1F800000
+    //     subnormal_shift = 25
     //
-    // This exercises the subnormal path with a large shift.
+    // and exercises the shift/guard/round/sticky path.
     a  = 32'h20000000;
     b  = 32'h1F800000;
     op = OP_MUL;
@@ -799,20 +755,70 @@ initial begin
 
 
     // ------------------------------------------------------------
-    // Explicit coverage of subnormal rounding-bit branches
+    // NEW TARGET 2:
+    // exact halfway -> ties to even -> zero
     // ------------------------------------------------------------
 
-    // This again uses subnormal_shift == 25 and therefore
-    // explicitly exercises:
+    // These operands produce exactly:
     //
-    //     if (subnormal_shift > 0)
-    //     if (subnormal_shift >= 2)
-    //     if (subnormal_shift >= 3)
+    //     2^-150
     //
-    // in rtl/fpu_mul.sv.
+    // which is halfway between:
     //
-    // Expected result remains 2^-127.
+    //     0
+    //
+    // and:
+    //
+    //     2^-149
+    //
+    // Under round-to-nearest-even the result is zero.
+    //
+    // This specifically targets:
+    //
+    //     subnormal_shift == 48
+    //
+    // with:
+    //
+    //     increment = 0
+    //
+    a  = 32'h1A000000;
+    b  = 32'h1A000000;
+    op = OP_MUL;
+    check_result(
+        32'h00000000,
+        "FPU MUL subnormal exact halfway"
+    );
 
+
+    // ------------------------------------------------------------
+    // NEW TARGET 3:
+    // halfway + sticky -> round upward
+    // ------------------------------------------------------------
+
+    // This is slightly greater than 2^-150.
+    //
+    // Therefore:
+    //
+    //     guard  = 1
+    //     sticky = 1
+    //     increment = 1
+    //
+    // Result must become the smallest positive subnormal.
+    a  = 32'h1A000001;
+    b  = 32'h1A000000;
+    op = OP_MUL;
+    check_result(
+        32'h00000001,
+        "FPU MUL subnormal halfway plus sticky"
+    );
+
+
+    // ------------------------------------------------------------
+    // Existing explicit subnormal rounding-bit path
+    // ------------------------------------------------------------
+
+    // Same shift-25 case, explicitly documenting the
+    // guard/round/sticky extraction path.
     a  = 32'h20000000;
     b  = 32'h1F800000;
     op = OP_MUL;
@@ -830,10 +836,7 @@ initial begin
     //
     //     2^-149 * 2^-1 = 2^-150
     //
-    // This is the exact halfway point between zero and the
-    // smallest positive subnormal.
-    //
-    // RNE chooses zero because zero is even.
+    // Exact halfway point.
     a  = 32'h00000001;
     b  = 32'h3F000000;
     op = OP_MUL;
@@ -847,10 +850,8 @@ initial begin
     // Very small result: subnormal_shift == 48, round upward
     // ------------------------------------------------------------
 
-    // Smallest positive subnormal multiplied by a value slightly
-    // greater than 0.5.
-    //
-    // RNE must produce the smallest positive subnormal.
+    // Smallest positive subnormal * value slightly greater
+    // than 0.5.
     a  = 32'h00000001;
     b  = 32'h3F000001;
     op = OP_MUL;
@@ -861,12 +862,58 @@ initial begin
 
 
     // ------------------------------------------------------------
-    // Subnormal -> normal boundary
+    // Very small result: subnormal_shift > 48
+    // ------------------------------------------------------------
+
+    // Smallest positive subnormal * 0.25
+    //
+    //     2^-149 * 2^-2 = 2^-151
+    //
+    // Must round to zero.
+    a  = 32'h00000001;
+    b  = 32'h3E800000;
+    op = OP_MUL;
+    check_result(
+        32'h00000000,
+        "FPU MUL very small underflow shift > 48"
+    );
+
+
+    // ------------------------------------------------------------
+    // NEW TARGET 4:
+    // subnormal -> normal boundary
+    // ------------------------------------------------------------
+
+    // Smallest normal * largest float below 1.0.
+    //
+    //     0x00800000 = smallest normal
+    //     0x3F7FFFFF = 1.0 - 2^-24
+    //
+    // The exact product is just below the smallest normal,
+    // but rounds to:
+    //
+    //     0x00800000
+    //
+    // This targets:
+    //
+    //     if (rounded_sig >= 24'h800000)
+    //
+    a  = 32'h00800000;
+    b  = 32'h3F7FFFFF;
+    op = OP_MUL;
+    check_result(
+        32'h00800000,
+        "FPU MUL smallest normal boundary"
+    );
+
+
+    // ------------------------------------------------------------
+    // Existing subnormal -> normal boundary
     // ------------------------------------------------------------
 
     // Largest subnormal * (1 + 2^-23)
     //
-    // rounds to the smallest normal number.
+    // Expected to round to the smallest normal.
     a  = 32'h007FFFFF;
     b  = 32'h3F800001;
     op = OP_MUL;
@@ -881,16 +928,6 @@ initial begin
     // ============================================================
 
     // MAX finite / 0.5 = +infinity
-    //
-    // 0x7F7FFFFF = maximum finite positive binary32 value
-    // 0x3F000000 = 0.5
-    //
-    // This specifically targets:
-    //
-    //     if (exp_unbiased > 14'sd127)
-    //
-    // at rtl/fpu_div.sv line 274.
-
     a  = 32'h7F7FFFFF;
     b  = 32'h3F000000;
     op = OP_DIV;
@@ -905,38 +942,37 @@ initial begin
     // ============================================================
 
     // ------------------------------------------------------------
-    // Normal result crossing into subnormal range
+    // NEW / TARGETED:
+    // normal -> subnormal quotient path
     // ------------------------------------------------------------
 
     // Smallest normal / 2.0
     //
     //     2^-126 / 2 = 2^-127
     //
-    // Binary32 encoding:
+    // Result:
     //
-    //     2^-127 = 0x00400000
+    //     0x00400000
     //
-    // This enters the subnormal path with:
+    // This targets the branch:
     //
-    //     shift_cnt = 11
+    //     if (shift_cnt >= QWIDTH)
     //
-    // and therefore exercises:
+    // FALSE
     //
-    //     shift_cnt >= 1
-    //     shift_cnt >= 2
-    //     shift_cnt >= 3
+    // and therefore enters:
     //
-    // as well as:
+    //     else begin
+    //         sig_raw = quotient >> shift_cnt;
+    //     end
     //
-    //     i < QWIDTH
-    //
-    // inside the sticky-bit loop.
+    // The guard/round/sticky path is exercised as well.
     a  = 32'h00800000;
     b  = 32'h40000000;
     op = OP_DIV;
     check_result(
         32'h00400000,
-        "FPU DIV normal to subnormal"
+        "FPU DIV subnormal quotient path"
     );
 
 
@@ -946,9 +982,7 @@ initial begin
 
     // 2^-126 / 4.0 = 2^-128
     //
-    // This is another subnormal result and exercises the same
-    // guard/round/sticky extraction path with a different
-    // shift amount.
+    // Another subnormal result with a different shift amount.
     a  = 32'h00800000;
     b  = 32'h40800000;
     op = OP_DIV;
@@ -959,19 +993,29 @@ initial begin
 
 
     // ------------------------------------------------------------
+    // DIV subnormal rounding candidate
+    // ------------------------------------------------------------
+
+    // Slightly above smallest normal / 2.
+    //
+    // This is useful for exercising the rounding extraction
+    // in the subnormal division path.
+    a  = 32'h00800001;
+    b  = 32'h40000000;
+    op = OP_DIV;
+    check_result(
+        32'h00400000,
+        "FPU DIV subnormal rounding"
+    );
+
+
+    // ------------------------------------------------------------
     // Extreme DIV underflow
     // ------------------------------------------------------------
 
     // Smallest positive subnormal / maximum finite
     //
-    // is far below the smallest representable subnormal and must
-    // round to zero.
-    //
-    // This exercises:
-    //
-    //     if (shift_cnt >= QWIDTH)
-    //
-    // at rtl/fpu_div.sv line 303.
+    // Far below representable range -> zero.
     a  = 32'h00000001;
     b  = 32'h7F7FFFFF;
     op = OP_DIV;

@@ -48,6 +48,10 @@ module fp_div (
 
     always @(*) begin
 
+        // ----------------------------------------------------
+        // Input decode
+        // ----------------------------------------------------
+
         sign_a = a[31];
         sign_b = b[31];
 
@@ -56,6 +60,35 @@ module fp_div (
 
         frac_a = a[22:0];
         frac_b = b[22:0];
+
+        // ----------------------------------------------------
+        // Defaults for all temporary registers
+        //
+        // This prevents unintended X propagation in branches
+        // where a temporary value is not explicitly assigned.
+        // ----------------------------------------------------
+
+        sig_a = 24'd0;
+        sig_b = 24'd0;
+
+        exp_a_unbiased = 13'sd0;
+        exp_b_unbiased = 13'sd0;
+        exp_unbiased   = 15'sd0;
+
+        dividend  = {QWIDTH{1'b0}};
+        quotient  = {QWIDTH{1'b0}};
+        remainder = {QWIDTH{1'b0}};
+
+        sig_raw = 24'd0;
+
+        guard     = 1'b0;
+        round_bit = 1'b0;
+        sticky    = 1'b0;
+        round_up  = 1'b0;
+
+        sig_rounded = 25'd0;
+
+        shift_cnt = 0;
 
         result = 32'h00000000;
 
@@ -102,8 +135,10 @@ module fp_div (
 
         end
         else if (a_is_zero) begin
+
             // Architectural contract: zero numerator always returns +0
             result = 32'h00000000;
+
         end
         else begin
 
@@ -121,9 +156,12 @@ module fp_div (
                      shift_cnt = shift_cnt + 1) begin
 
                     if (sig_a[23] == 1'b0) begin
+
                         sig_a = sig_a << 1;
+
                         exp_a_unbiased =
                             exp_a_unbiased - 13'sd1;
+
                     end
 
                 end
@@ -152,9 +190,12 @@ module fp_div (
                      shift_cnt = shift_cnt + 1) begin
 
                     if (sig_b[23] == 1'b0) begin
+
                         sig_b = sig_b << 1;
+
                         exp_b_unbiased =
                             exp_b_unbiased - 13'sd1;
+
                     end
 
                 end
@@ -236,7 +277,9 @@ module fp_div (
                     (|quotient[6:0]) ||
                     (remainder != 0);
 
+                // ------------------------------------------------
                 // Round-to-nearest-even
+                // ------------------------------------------------
 
                 round_up =
                     guard &&
@@ -300,6 +343,14 @@ module fp_div (
 
                 shift_cnt = 32 - 149 - exp_unbiased;
 
+                // ------------------------------------------------
+                // If the required shift is larger than the
+                // available quotient width, the result is
+                // below the representable subnormal range.
+                //
+                // No out-of-range quotient indexing is allowed.
+                // ------------------------------------------------
+
                 if (shift_cnt >= QWIDTH) begin
 
                     sig_raw   = 24'd0;
@@ -311,36 +362,75 @@ module fp_div (
                         (remainder != 0);
 
                 end
-                else begin
 
-                    sig_raw = quotient >> shift_cnt;
-                    sig_raw = sig_raw[23:0];
+                // ------------------------------------------------
+                // Normal subnormal extraction
+                // ------------------------------------------------
+
+                else if (shift_cnt >= 2) begin
+
+                    sig_raw =
+                        quotient >> shift_cnt;
+
+                    sig_raw =
+                        sig_raw[23:0];
 
                     guard =
-                        (shift_cnt >= 1) ?
-                        quotient[shift_cnt-1] :
-                        1'b0;
+                        quotient[shift_cnt-1];
 
                     round_bit =
-                        (shift_cnt >= 2) ?
-                        quotient[shift_cnt-2] :
-                        1'b0;
+                        quotient[shift_cnt-2];
 
-                    sticky = (remainder != 0);
+                    sticky =
+                        (remainder != 0);
 
-                    if (shift_cnt >= 3) begin
+                    for (i = 0;
+                         i <= shift_cnt-3;
+                         i = i + 1) begin
 
-                        for (i = 0;
-                             i <= shift_cnt-3;
-                             i = i + 1) begin
-
-                            if (i < QWIDTH)
-                                sticky =
-                                    sticky || quotient[i];
-
-                        end
+                        sticky =
+                            sticky || quotient[i];
 
                     end
+
+                end
+
+                // ------------------------------------------------
+                // shift_cnt == 1
+                // ------------------------------------------------
+
+                else if (shift_cnt == 1) begin
+
+                    sig_raw =
+                        quotient >> 1;
+
+                    sig_raw =
+                        sig_raw[23:0];
+
+                    guard =
+                        quotient[0];
+
+                    round_bit = 1'b0;
+
+                    sticky =
+                        (remainder != 0);
+
+                end
+
+                // ------------------------------------------------
+                // Defensive case: shift_cnt <= 0
+                // ------------------------------------------------
+
+                else begin
+
+                    sig_raw =
+                        quotient[23:0];
+
+                    guard     = 1'b0;
+                    round_bit = 1'b0;
+
+                    sticky =
+                        (remainder != 0);
 
                 end
 

@@ -85,6 +85,9 @@ module fp_add (
      * Right shift with sticky-bit generation.
      *
      * All bits discarded by the shift are ORed into bit 0.
+     *
+     * The function is called only from exponent-alignment paths,
+     * where amount is guaranteed to be > 0.
      */
     function automatic [26:0] shift_right_sticky;
         input [26:0] value;
@@ -95,12 +98,13 @@ module fp_add (
 
         begin
 
-            if (amount <= 0) begin
-
-                shift_right_sticky = value;
-
-            end
-            else if (amount >= 27) begin
+            /*
+             * Large shift:
+             *
+             * All 27 bits are discarded. The result is zero
+             * except for the sticky bit.
+             */
+            if (amount >= 27) begin
 
                 sticky = 1'b0;
 
@@ -115,6 +119,10 @@ module fp_add (
                 shift_right_sticky[0] = sticky;
 
             end
+
+            /*
+             * Normal right shift with sticky-bit generation.
+             */
             else begin
 
                 sticky = 1'b0;

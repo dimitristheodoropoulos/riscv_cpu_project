@@ -1,6 +1,3 @@
-
-
-
 # RISC-V CPU — Digital Verification Portfolio
 
 A block-level Digital Verification Engineering portfolio project for a
@@ -17,10 +14,10 @@ practical verification techniques including:
 - Directed testing
 - Pseudo-random testing
 - Functional coverage
+- Code coverage
 - Assertion-based verification
 - Formal verification
 - Seed-based regression
-- Coverage reporting
 - Reproducible command-line verification flows
 - Explicit verification closure criteria
 - Toolchain and licensing analysis
@@ -83,7 +80,7 @@ block-level verification rather than broad but shallow CPU coverage.
 |---|---|---|---|
 | ALU | `rtl/alu.sv` | UVM + scoreboard + functional coverage + formal | ✅ Verified |
 | Control Unit | `rtl/cu.sv` | UVM + scoreboard + independent decode model | ✅ Verified |
-| FPU | `rtl/fpu.sv`, `rtl/fpu_add.sv`, `rtl/fpu_sub.sv`, `rtl/fpu_mul.sv`, `rtl/fpu_div.sv` | Directed TB + Python reference/differential flow + UVM smoke environment | 🟢 Active verification |
+| FPU | `rtl/fpu.sv`, `rtl/fpu_add.sv`, `rtl/fpu_sub.sv`, `rtl/fpu_mul.sv`, `rtl/fpu_div.sv` | Directed TB + Python reference/differential flow + UVM environment | 🟢 Active verification |
 | MMU | `rtl/mmu.sv` | Directed TB + coverage | 🟡 Verification in progress |
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + assertions + coverage | 🟢 Active verification |
 | CPU Core | `rtl/cpu_core.sv` | System-level integration | ⚪ Not yet verified |
@@ -329,7 +326,7 @@ FPU subset.
 
 ---
 
-## FPU Directed Verification
+# FPU Directed Verification
 
 The directed FPU testbench is:
 
@@ -347,11 +344,30 @@ Particular attention is given to:
 * exponent transitions;
 * sign handling;
 * zero-related cases;
+* subnormal behavior;
 * division corner cases;
 * floating-point representation boundaries;
 * carry/rounding boundaries.
 
-The testbench is self-checking and reports mismatches explicitly.
+The directed testbench is self-checking and reports mismatches explicitly.
+
+Representative targeted cases include:
+
+* normal arithmetic;
+* positive and negative results;
+* signed zero;
+* infinity;
+* NaN;
+* overflow;
+* underflow;
+* subnormal operands/results;
+* rounding boundaries;
+* multiplication rounding carry;
+* division underflow;
+* exponent transitions.
+
+The directed tests are used both for functional validation and for
+targeted coverage closure.
 
 ---
 
@@ -371,11 +387,15 @@ behavior model that is independent of the RTL implementation.
 The model explicitly works with binary32 representation and provides the
 foundation for differential verification.
 
-This is intentionally separated from the SystemVerilog RTL so that the
-verification environment does not simply reproduce the same arithmetic
-algorithm used by the DUT.
+The reference implementation includes an exact binary32-oriented
+calculation path and rounding support based on the project's verification
+contract.
 
-The project also contains Python unit tests for the reference model:
+This infrastructure is intentionally separated from the SystemVerilog RTL
+so that the verification environment does not simply reproduce the same
+arithmetic algorithm used by the DUT.
+
+Python unit tests for the reference model are located in:
 
 ```text
 tests/reference/test_binary32.py
@@ -423,6 +443,10 @@ Differential verification is particularly valuable for floating-point
 arithmetic because a finite collection of manually calculated expected
 values is insufficient to provide broad confidence.
 
+The differential flow has been exercised against generated binary32
+vectors, providing an additional verification layer beyond the directed
+testbench.
+
 The reference model and differential infrastructure are implemented.
 
 The FPU itself remains classified as **actively verified**, rather than
@@ -447,8 +471,17 @@ The environment provides the foundation for:
 * transaction-based stimulus;
 * driver/monitor separation;
 * scoreboard-based checking;
+* corner-case sequences;
+* pseudo-random stimulus;
 * regression integration;
-* future functional coverage expansion.
+* coverage expansion.
+
+The FPU package contains multiple sequence types, including constrained
+category-based stimulus and dedicated corner/closure sequences.
+
+Because the selected free simulator environment does not provide the full
+license-gated constrained-random feature set, the project does not rely on
+commercial-only constraint solving as a verification prerequisite.
 
 The current UVM environment is considered an active verification
 environment rather than a fully closed production verification environment.
@@ -457,19 +490,42 @@ environment rather than a fully closed production verification environment.
 
 # FPU Coverage
 
-FPU functional and code coverage are being progressively expanded.
+FPU coverage is being progressively expanded using both functional and
+simulator-supported code coverage.
 
-Coverage closure is not claimed until:
+The project uses Questa coverage collection where supported, including
+coverage options such as:
 
-* the relevant bins are defined;
-* required scenarios are exercised;
-* coverage reports are reviewed;
-* uncovered bins are classified;
-* legitimate exclusions are documented;
-* remaining verification gaps are addressed.
+```text
++cover=bcesf
+```
 
-The project's FPU verification matrix explicitly defines the intended
-verification scope before coverage is used as a closure metric.
+The latest detailed FPU closure analysis reported:
+
+```text
+Branch Coverage     90.56%
+Condition Coverage  85.00%
+Statement Coverage  92.85%
+Toggle Coverage     77.59%
+```
+
+These numbers are treated as **closure analysis results**, not as evidence
+of complete FPU verification.
+
+In particular, code coverage does not automatically imply that all
+meaningful IEEE-754 functional scenarios have been exercised.
+
+Coverage closure therefore requires:
+
+* the relevant functional scenarios to be defined;
+* required bins to be exercised;
+* uncovered implementation branches to be investigated;
+* unreachable or architecturally irrelevant branches to be justified;
+* directed tests to be added where missing reachable behavior is identified;
+* coverage reports to be reviewed after regression.
+
+The project intentionally avoids changing RTL solely to obtain artificial
+coverage.
 
 ---
 
@@ -573,7 +629,8 @@ Directed tests are used for:
 * arithmetic corner cases;
 * IEEE-754 edge cases;
 * regression reproduction;
-* debugging.
+* debugging;
+* targeted coverage closure.
 
 Directed testing provides deterministic and easily reproducible failure
 cases.
@@ -677,7 +734,7 @@ Conceptually:
 ```
 
 This approach is especially useful for floating-point arithmetic, where
-exhaustive hand-written expected-value tests are impractical.
+exhaustive hand-written expected values are impractical.
 
 ---
 
@@ -707,6 +764,49 @@ A coverage item is considered closed only when:
 3. required bins are hit;
 4. the resulting report is reviewed;
 5. missing bins are covered or explicitly justified.
+
+Code coverage is considered separately from functional coverage.
+
+Code coverage measures implementation execution.
+
+Functional coverage measures whether intended verification scenarios have
+actually been exercised.
+
+Neither metric alone is sufficient to establish verification closure.
+
+---
+
+# Code Coverage
+
+The project supports simulator-based code coverage collection using the
+Questa verification environment.
+
+Coverage categories used during FPU closure analysis include:
+
+```text
+Branch
+Condition
+Statement
+Toggle
+```
+
+Code coverage is used as a diagnostic and closure-support mechanism.
+
+A high code-coverage percentage does not automatically prove:
+
+* complete functional coverage;
+* complete IEEE-754 compliance;
+* correct architectural behavior;
+* exhaustive corner-case verification.
+
+Coverage results are therefore reviewed together with:
+
+* directed tests;
+* differential verification;
+* reference-model checking;
+* assertions;
+* functional coverage;
+* regression results.
 
 ---
 
@@ -814,7 +914,11 @@ Examples:
 ```bash
 ./run_sim.sh alu
 ./run_sim.sh cu
+./run_sim.sh fpu_closure
 ```
+
+The FPU closure flow is intended for targeted coverage analysis and
+includes the dedicated UVM closure sequence.
 
 Additional block-specific flows are incorporated as the verification
 environment expands.
@@ -846,6 +950,9 @@ The simulator provides the UVM infrastructure required for the current
 verification environment.
 
 The RTL remains technology-independent.
+
+The selected free edition has important licensing limitations, which are
+documented explicitly rather than hidden.
 
 ---
 
@@ -884,6 +991,14 @@ Boolector
 ```
 
 These provide an open-source formal verification flow.
+
+Z3 was also evaluated for the ALU formal environment.
+
+The tested Z3 configuration did not complete the ALU property set within
+the observed five-minute evaluation window, while Boolector completed the
+tested properties significantly faster.
+
+The difference is treated as a solver-performance/tool-selection finding.
 
 ---
 
@@ -924,6 +1039,8 @@ The limitation is explicitly documented rather than hidden.
 # Verification Findings
 
 Several real RTL and verification issues were identified during development.
+
+---
 
 ## ALU/CU Control Encoding Mismatch
 
@@ -981,6 +1098,48 @@ explicitly controlled in cycle-based verification environments.
 
 ---
 
+## FPU Coverage Closure Findings
+
+During FPU coverage analysis, uncovered branches were inspected at RTL
+level rather than simply being ignored.
+
+In particular, rounding and normalization paths in the floating-point
+arithmetic blocks were examined.
+
+Targeted directed vectors were added for reachable corner cases including:
+
+* multiplication rounding carry;
+* multiplication overflow;
+* multiplication subnormal paths;
+* very small subnormal operands;
+* division subnormal results;
+* extreme division underflow;
+* addition overflow;
+* addition rounding carry;
+* exponent/rounding boundaries.
+
+This approach demonstrates coverage-driven verification:
+
+```text
+Coverage Gap
+     ↓
+RTL Branch Analysis
+     ↓
+Determine Reachability
+     ↓
+Create Targeted Stimulus
+     ↓
+Run Regression
+     ↓
+Re-measure Coverage
+```
+
+Branches that are determined to be unreachable or architecturally
+irrelevant are not artificially stimulated merely to increase a coverage
+percentage.
+
+---
+
 # Current Verification Status
 
 The project intentionally maintains explicit status instead of claiming
@@ -995,8 +1154,8 @@ project-wide closure.
 | FPU directed verification      | 🟢 Active      | Extensive arithmetic/corner-case testing    |
 | FPU differential verification  | 🟢 Active      | Independent Python reference comparison     |
 | FPU reference model            | 🟢 Implemented | Independent Python binary32 infrastructure  |
-| FPU UVM infrastructure         | 🟢 Implemented | Smoke/regression foundation                 |
-| FPU coverage closure           | 🟡 In progress | Further closure required                    |
+| FPU UVM infrastructure         | 🟢 Implemented | Smoke/closure/regression foundation         |
+| FPU coverage closure           | 🟡 In progress | Further closure analysis required           |
 | MMU directed verification      | 🟡 In progress | Dedicated TB exists                         |
 | MMU coverage                   | 🟡 In progress | Dedicated coverage infrastructure exists    |
 | Register File verification     | 🟢 Active      | Self-checking environment                   |
@@ -1016,6 +1175,8 @@ project-wide closure.
 
 The long-term objective is to evolve the project toward a more complete
 production-style verification environment.
+
+---
 
 ## Phase 1 — Block-Level Verification
 
@@ -1043,6 +1204,7 @@ Current and near-term activities:
 Planned activities:
 
 * Complete FPU functional coverage closure
+* Complete FPU code-coverage analysis
 * Complete MMU coverage closure
 * Complete Register File coverage closure
 * Generate consolidated code-coverage reports
@@ -1130,7 +1292,7 @@ production IC verification environment.
 | UVM methodology       | ALU/CU/FPU infrastructure               | Extend consistently to remaining blocks                |
 | Constrained random    | License constrained                     | Requires licensed simulator or alternative methodology |
 | Functional coverage   | Multiple block-specific implementations | Complete closure and consolidation                     |
-| Code coverage         | Tooling available                       | Generate and analyze closure reports                   |
+| Code coverage         | Tooling available                       | Complete analysis and closure                          |
 | Assertions            | Implemented for selected blocks         | Expand and integrate into regression                   |
 | Formal                | ALU complete                            | Add additional block properties                        |
 | Regression            | Seed-based local flow                   | Unified CI and artifact reporting                      |
@@ -1236,6 +1398,9 @@ riscv_cpu_project/
 └── README.md
 ```
 
+The repository structure may evolve as additional verification components
+and reports are added.
+
 ---
 
 # FPU Verification Contract
@@ -1278,9 +1443,10 @@ Typical flows include:
 ```bash
 ./run_sim.sh alu
 ./run_sim.sh cu
+./run_sim.sh fpu_closure
 ```
 
-and seed-based regression:
+Seed-based regression:
 
 ```bash
 ./run_regression.sh <target> <num_seeds>
@@ -1339,6 +1505,7 @@ Scoreboards
 Reference Models
 Differential Verification
 Functional Coverage
+Code Coverage
 Assertions
 Formal Verification
 Seed-Based Regression
@@ -1353,6 +1520,10 @@ The current focus is block-level verification and closure of the:
 
 The ALU and Control Unit have reached the documented verification closure
 level for their defined scope.
+
+The FPU has an implemented directed, differential, reference-model, UVM,
+and coverage-analysis infrastructure, but final verification closure is
+still in progress.
 
 The next major phase is CPU-core integration verification.
 
@@ -1371,6 +1542,8 @@ Create Directed / Pseudo-Random Stimulus
      ↓
 Measure Functional Coverage
      ↓
+Collect Code Coverage
+     ↓
 Run Assertions / Formal Checks
      ↓
 Run Reproducible Regression
@@ -1384,4 +1557,3 @@ Document Remaining Gaps
 
 This repository therefore presents both the verification infrastructure that
 has been implemented and the limitations that remain.
-

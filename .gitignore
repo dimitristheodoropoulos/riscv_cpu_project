@@ -2,10 +2,12 @@
 # RISC-V CPU Verification Project — Git Ignore
 # ============================================================
 
+
 # ------------------------------------------------------------
 # Simulation artifacts
 # ------------------------------------------------------------
 
+# Waveforms / simulator dumps
 *.vcd
 *.fst
 *.lxt
@@ -14,22 +16,22 @@
 *.trn
 *.dump
 *.log
-transcript
 
 # Questa / ModelSim
 modelsim.ini
 work/
 sim/
+transcript
+
+# Generated simulation output
+scoreboard_in.txt
+scoreboard_out.txt
 
 # Icarus Verilog
 *.ivl
 *.vpi
 *_run
 tests/*_run
-
-# Generated simulation output
-scoreboard_in.txt
-scoreboard_out.txt
 
 
 # ------------------------------------------------------------
@@ -38,8 +40,14 @@ scoreboard_out.txt
 
 build/
 *.o
+build.log
+sim_output.log
 
+
+# ------------------------------------------------------------
 # Synthesis / implementation generated files
+# ------------------------------------------------------------
+
 *.syn
 *.map
 *.ngc
@@ -59,15 +67,18 @@ build/
 #   formal/*/src/
 #
 # Generated formal outputs:
+
 formal/*/model/
 formal/*/work/
 formal/*/engine_*/
+formal/*/config/
 
-# SymbiYosys/Yosys generated reports/state
+# SymbiYosys / Yosys generated reports and state
 formal/*/status
 formal/*/status.sqlite
 formal/*/*.xml
 formal/*/PASS
+formal/*/logfile.txt
 
 
 # ------------------------------------------------------------
@@ -76,6 +87,7 @@ formal/*/PASS
 
 venv/
 .venv/
+
 __pycache__/
 *.pyc
 *.pyo
@@ -91,6 +103,7 @@ __pycache__/
 
 .vscode/
 .idea/
+
 *.swp
 *.swo
 *.tmp
@@ -118,18 +131,3 @@ Thumbs.db
 # ------------------------------------------------------------
 
 .github/workflows/.cache/
-# Formal generated logs
-formal/*/logfile.txt
-
-# SymbiYosys generated run directories
-formal/*/config/
-
-# SymbiYosys generated run directories
-
-# Root-level generated simulation outputs
-build.log
-sim_output.log
-transcript
-
-# Generated Python test artifacts
-.pytest_cache/

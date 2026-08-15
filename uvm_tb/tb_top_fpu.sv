@@ -32,7 +32,22 @@ module tb_top_fpu;
         .rst    (fpu_vif.rst),
         .a      (fpu_vif.a),
         .b      (fpu_vif.b),
-        .op     (fpu_vif.op),
+        .op      (fpu_vif.op),
+        .result (fpu_vif.result),
+        .ready  (fpu_vif.ready)
+    );
+
+    // ------------------------------------------------------------
+    // SVA
+    //
+    // Assertions monitor the same signals used by the DUT.
+    // ------------------------------------------------------------
+    fpu_sva sva (
+        .clk    (clk),
+        .rst    (fpu_vif.rst),
+        .a      (fpu_vif.a),
+        .b      (fpu_vif.b),
+        .op      (fpu_vif.op),
         .result (fpu_vif.result),
         .ready  (fpu_vif.ready)
     );

@@ -82,7 +82,7 @@ fpu)
     ;;
 
 fpu_smoke)
-    echo "3. Compiling FPU RTL + UVM smoke test..."
+    echo "3. Compiling FPU RTL + UVM smoke test + SVA..."
 
     vlog -sv +cover=bcesf \
         +incdir+"$PROJECT_ROOT/uvm_tb/fpu_agent" \
@@ -90,6 +90,7 @@ fpu_smoke)
         +incdir+"$PROJECT_ROOT/uvm_tb/sequences" \
         +incdir+"$PROJECT_ROOT/uvm_tb/tests" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_if.sv" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_sva.sv" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_pkg.sv" \
         "$PROJECT_ROOT/rtl/fpu_add.sv" \
         "$PROJECT_ROOT/rtl/fpu_sub.sv" \
@@ -104,7 +105,7 @@ fpu_smoke)
     ;;
 
 fpu_long)
-    echo "3. Compiling FPU RTL + UVM testbench (long regression)..."
+    echo "3. Compiling FPU RTL + UVM testbench + SVA (long regression)..."
 
     vlog -sv +cover=bcesf \
         +incdir+"$PROJECT_ROOT/uvm_tb/fpu_agent" \
@@ -112,6 +113,7 @@ fpu_long)
         +incdir+"$PROJECT_ROOT/uvm_tb/sequences" \
         +incdir+"$PROJECT_ROOT/uvm_tb/tests" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_if.sv" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_sva.sv" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_pkg.sv" \
         "$PROJECT_ROOT/rtl/fpu_add.sv" \
         "$PROJECT_ROOT/rtl/fpu_sub.sv" \
@@ -141,7 +143,7 @@ fpu_diff)
     ;;
 
 fpu_closure)
-    echo "3. Compiling FPU RTL + UVM testbench (coverage closure)..."
+    echo "3. Compiling FPU RTL + UVM testbench + SVA (coverage closure)..."
 
     vlog -sv +cover=bcesf \
         +incdir+"$PROJECT_ROOT/uvm_tb/fpu_agent" \
@@ -149,6 +151,7 @@ fpu_closure)
         +incdir+"$PROJECT_ROOT/uvm_tb/sequences" \
         +incdir+"$PROJECT_ROOT/uvm_tb/tests" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_if.sv" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_sva.sv" \
         "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_pkg.sv" \
         "$PROJECT_ROOT/rtl/fpu_add.sv" \
         "$PROJECT_ROOT/rtl/fpu_sub.sv" \
@@ -160,6 +163,29 @@ fpu_closure)
 
     TOP="tb_top_fpu"
     TESTNAME="fpu_closure_test"
+    ;;
+
+fpu_sva)
+    echo "3. Compiling FPU RTL + UVM testbench + SVA..."
+
+    vlog -sv +cover=bcesf \
+        +incdir+"$PROJECT_ROOT/uvm_tb/fpu_agent" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/env" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/sequences" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/tests" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_if.sv" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_sva.sv" \
+        "$PROJECT_ROOT/uvm_tb/fpu_agent/fpu_pkg.sv" \
+        "$PROJECT_ROOT/rtl/fpu_add.sv" \
+        "$PROJECT_ROOT/rtl/fpu_sub.sv" \
+        "$PROJECT_ROOT/rtl/fpu_mul.sv" \
+        "$PROJECT_ROOT/rtl/fpu_div.sv" \
+        "$PROJECT_ROOT/rtl/fpu.sv" \
+        "$PROJECT_ROOT/uvm_tb/tests/fpu_smoke_test.sv" \
+        "$PROJECT_ROOT/uvm_tb/tb_top_fpu.sv"
+
+    TOP="tb_top_fpu"
+    TESTNAME="fpu_smoke_test"
     ;;
 
 *)
@@ -174,6 +200,7 @@ fpu_closure)
     echo "  ./run_sim.sh fpu_long"
     echo "  ./run_sim.sh fpu_diff"
     echo "  ./run_sim.sh fpu_closure"
+    echo "  ./run_sim.sh fpu_sva"
     exit 1
     ;;
 
