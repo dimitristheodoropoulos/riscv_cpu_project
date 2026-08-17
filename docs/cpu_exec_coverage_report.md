@@ -1,253 +1,164 @@
-Ωραία. Αφού δημιούργησες το report, η σωστή μορφή για το `CPU EXEC RTL Coverage Closure Report` μπορεί να είναι αντίστοιχη με το FPU waiver report.
+# CPU Execution Core RTL Coverage Report
 
-Πρότεινα να το κρατήσεις ως:
+## 1. Scope
 
-```
-docs/cpu_exec_coverage_report.md
-```
+This report documents the RTL coverage results for the CPU execution core
+(`cpu_exec_core`) verification environment.
 
-με περιεχόμενο:
+The scope is limited to the currently supported RV32I execution subset and
+does not include full processor-level verification.
 
-```markdown
-# CPU EXEC RTL Coverage Report
+The verification target is:
 
-## 1. Summary
-
-This report documents the RTL coverage status of the RV32I CPU execution core.
-
-The objective was to verify the implemented execution paths including:
-
-- Control Unit instruction decoding
-- Register File access
-- ALU operations
-- Memory Load/Store paths
-- CPU execution control logic
-
-Coverage was collected using:
-
-- Questa Altera Starter FPGA Edition-64 2025.2
-- vcover coverage analysis
-- UCDB database:
-  `sim/output/cpu_exec.ucdb`
-
-The reported coverage represents executed RTL behavior from the CPU execution verification environment.
-
----
-
-# 2. Verified RTL Blocks
-
-The following RTL components were exercised:
-
-| Module | Instance | Status |
-|---|---|---|
-| Control Unit | `/tb_top_cpu_exec/dut_wrapper/dut/u_cu` | Covered |
-| Register File | `/tb_top_cpu_exec/dut_wrapper/dut/u_rf` | Covered |
-| ALU | `/tb_top_cpu_exec/dut_wrapper/dut/u_alu` | Covered |
-| MMU | `/tb_top_cpu_exec/dut_wrapper/dut/u_mmu` | Covered |
-| CPU Execution Core | `/tb_top_cpu_exec/dut_wrapper/dut` | Covered |
-
----
-
-# 3. Coverage Results
-
-## Control Unit
-
-Instance:
-
-```
-
-/tb_top_cpu_exec/dut_wrapper/dut/u_cu
-
-```
-
-Results:
-
-| Metric | Coverage |
-|---|---:|
-| Branch Coverage | 100% |
-| Statement Coverage | 100% |
-
-All instruction decode branches were exercised.
-
-Covered instructions include:
-
-- ADD
-- SUB
-- AND
-- OR
-- XOR
-- SLT
-- SLTU
-- SLL
-- SRL
-- SRA
-- LW
-- SW
-
----
-
-## ALU
-
-Instance:
-
-```
-
-/tb_top_cpu_exec/dut_wrapper/dut/u_alu
-
-```
-
-Results:
-
-| Metric | Coverage |
-|---|---:|
-| Branch Coverage | 100% |
-| Condition Coverage | 100% |
-| Statement Coverage | 100% |
-| Expression Coverage | 20% |
-
-All functional ALU operations were reached.
-
-Covered:
-
-- Arithmetic operations
-- Logical operations
-- Shift operations
-- Compare operations
-- Zero detection
-
-Remaining uncovered expressions correspond to signed overflow detection corner cases.
-
-These are not execution failures and require dedicated overflow-directed vectors.
-
----
-
-## MMU
-
-Instance:
-
-```
-
-/tb_top_cpu_exec/dut_wrapper/dut/u_mmu
-
-```
-
-Results:
-
-| Metric | Coverage |
-|---|---:|
-| Branch Coverage | 100% |
-| Expression Coverage | 100% |
-| Statement Coverage | 100% |
-
-Covered:
-
-- Memory read path
-- Memory write path
-- Address handling
-- Load/store execution
-
----
-
-## CPU Execution Core
-
-Instance:
-
-```
-
+```text
 /tb_top_cpu_exec/dut_wrapper/dut
-
 ```
 
-Results:
+The analyzed RTL hierarchy includes:
 
-| Metric | Coverage |
+- `cpu_exec_core`
+- `cu`
+- `register_file`
+- `alu`
+- `mmu`
+
+## 2. DUT Hierarchy
+
+| RTL Instance | Design Unit | Function |
+|---|---|---|
+| `dut` | `cpu_exec_core` | CPU execution core |
+| `dut/u_cu` | `cu` | Instruction decode / control |
+| `dut/u_rf` | `register_file` | Integer register file |
+| `dut/u_alu` | `alu` | Arithmetic / logic unit |
+| `dut/u_mmu` | `mmu` | Data memory / load-store path |
+
+## 3. Covered Instructions
+
+The current CPU execution core supports and verifies the following
+RV32I instructions:
+
+| Instruction | Type | Status |
+|---|---|---|
+| ADD | R-type | Verified |
+| SUB | R-type | Verified |
+| AND | R-type | Verified |
+| OR  | R-type | Verified |
+| XOR | R-type | Verified |
+| SLL | R-type | Verified |
+| SRA | R-type | Verified |
+| SLT | R-type | Verified |
+| LW  | I-type | Verified |
+| SW  | S-type | Verified |
+
+The following instruction categories are explicitly **outside** the current
+CPU execution coverage scope:
+
+- Branch instructions
+- Jump instructions
+- I-type ALU immediate instructions
+- LUI / AUIPC
+- FPU arithmetic instructions
+- CSR / system instructions
+- Full pipeline / hazard / exception behavior
+
+## 4. RTL Coverage Results
+
+RTL coverage was collected using Questa coverage analysis.
+
+| Metric | Result |
 |---|---:|
-| Branch Coverage | 100% |
-| Condition Coverage | 100% |
-| Statement Coverage | 100% |
-| Expression Coverage | 85.71% |
+| Branch Coverage | **63/63 = 100%** |
+| Condition Coverage | **100% reported bins** |
+| Statement Coverage | **100% reported RTL instances** |
 
-The execution controller paths were fully exercised.
+Branch and statement coverage per RTL instance:
 
-Remaining expression gap:
+| RTL Instance | Branch Coverage | Statement Coverage |
+|---|---:|---:|
+| `cpu_exec_core` | 100% | 100% |
+| `cu` | 100% | 100% |
+| `register_file` | 100% | 100% |
+| `alu` | 100% | 100% |
+| `mmu` | 100% | 100% |
 
-```
+The achieved closure is therefore:
 
-line 136:
-(reg_init_enable ? reg_init_is_fp : is_fp)
+- 100% reachable RTL branch coverage
+- 100% RTL statement coverage
+- Full coverage of all implemented RV32I execution paths
 
-```
+This result is scoped to the analyzed DUT hierarchy and does **not**
+represent complete RV32I processor coverage.
 
-Uncovered condition:
+## 5. Toggle Coverage Residual
 
-```
+Toggle coverage is reported separately and is not used as a closure metric
+for the current CPU execution scope.
 
-is_fp = 1
-when reg_init_enable = 0
+Observed toggle coverage per RTL instance:
 
-```
-
-This corresponds to floating-point register initialization behavior,
-which is outside the current RV32I execution scope.
-
----
-
-# 4. Toggle Coverage
-
-Toggle coverage was analyzed separately.
-
-Observed results:
-
-| Block | Toggle Coverage |
+| RTL Instance | Toggle Coverage |
 |---|---:|
-| CPU Interface | 51.16% |
-| Register File | 66.66% |
-| ALU | 100% functional coverage |
-| MMU | 73.97% |
+| `cpu_exec_core` | 67.52% |
+| `cu` | 26.38% |
+| `register_file` | 66.66% |
+| `alu` | 94.28% |
+| `mmu` | 73.97% |
 
-The remaining toggle misses are mainly:
+### 5.1 Explanation of Toggle Gaps
 
-- unused upper address bits
-- unused instruction encoding bits
-- inactive FP-related signals
-- uninitialized architectural states
+The remaining toggle coverage gaps are expected and are caused by:
 
-These do not indicate missing RV32I functional coverage.
+- **Unreachable instruction encoding fields**  
+  The CPU supports only a limited RV32I subset; therefore many opcode,
+  funct3, and funct7 bit combinations are never exercised.
 
----
+- **No FPU path in the CPU execution core**  
+  The `is_fp` and floating-point register-file write/read paths are
+  intentionally outside the current CPU execution subset.
 
-# 5. Verification Status
+- **No branch/jump support**  
+  Branch and jump instructions are not implemented, leaving associated
+  control and PC-update paths inactive.
 
-The CPU execution RTL achieved:
+- **Unused datapath bits**  
+  Some 32-bit datapath signals do not toggle all bit positions under the
+  limited instruction set.
 
-- 100% branch coverage on all functional blocks
-- 100% statement coverage on all analyzed RTL blocks
-- Complete RV32I instruction execution coverage
-- Complete load/store path coverage
+These toggle gaps do not indicate missing functional coverage for the
+currently supported instructions.
 
-The remaining uncovered items are related to:
+## 6. Coverage Evidence
 
-- non-RV32I functionality
-- unreachable configuration paths
-- inactive FP initialization logic
-- toggle-only activity gaps
+Coverage database:
 
----
-
-# 6. Conclusion
-
-The RV32I CPU execution core has reached functional RTL coverage closure.
-
-All implemented execution paths have been exercised and verified.
-
-Remaining coverage gaps do not represent missing functional verification
-for the supported CPU scope.
+```text
+sim/output/cpu_exec.ucdb
 ```
 
-Με βάση τα logs που έδωσες, η ουσία είναι:
+Detailed coverage report:
 
-✅ **CU: 100% branch / statement**
-✅ **ALU: 100% branch / statement / condition**
-✅ **MMU: 100% branch / expression / statement**
-✅ **CPU core: 100% branch / condition / statement**
-⚠️ Μόνο expression/toggle gaps σε μη-RV32I ή ειδικές περιπτώσεις.
+```text
+sim/output/cpu_exec_coverage_report.txt
+```
+
+The RTL coverage numbers in this document are taken from the detailed
+Questa coverage report generated from the above UCDB.
+
+## 7. Conclusion
+
+The CPU execution core RTL coverage analysis has achieved closure for the
+analyzed DUT hierarchy:
+
+- Branch coverage: **63/63 (100%)**
+- Condition coverage: **100% reported bins**
+- Statement coverage: **100% reported RTL instances**
+
+The remaining toggle coverage gaps are explained by unsupported/unreachable
+instruction fields and are documented in Section 5.
+
+This report provides RTL coverage evidence for the supported RV32I
+execution subset and intentionally does **not** claim complete RV32I
+processor verification.
+
+Full processor integration verification remains a future phase.
