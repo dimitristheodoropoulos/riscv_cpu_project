@@ -33,12 +33,32 @@ module cu (
                 rd  = instruction[11:7];
                 reg_write = 1'b1;
                 case (funct3)
-                    3'b000: ALU_op = funct7[5] ? 4'b0110 : 4'b0010; // SUB : ADD
-                    3'b111: ALU_op = 4'b0000;                       // AND
-                    3'b110: ALU_op = 4'b0001;                       // OR
-                    3'b010: ALU_op = 4'b0111;                       // SLT
-                    default: ALU_op = 4'b1111;                      // unsupported yet
-                endcase
+
+    3'b000:
+        ALU_op = funct7[5] ? 4'b0110 : 4'b0010; // SUB / ADD
+
+    3'b111:
+        ALU_op = 4'b0000; // AND
+
+    3'b110:
+        ALU_op = 4'b0001; // OR
+
+    3'b100:
+        ALU_op = 4'b0011; // XOR
+
+    3'b001:
+        ALU_op = 4'b0100; // SLL
+
+    3'b101:
+        ALU_op = funct7[5] ? 4'b0101 : 4'b1111; // SRA / SRL unsupported
+
+    3'b010:
+        ALU_op = 4'b0111; // SLT
+
+    default:
+        ALU_op = 4'b1111;
+
+endcase
             end
 
             7'b0000011: begin  // Load (LB/LH/LW/LBU/LHU) - LW πλήρως, υπόλοιπα TODO

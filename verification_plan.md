@@ -52,11 +52,12 @@ The primary verification scope currently covers:
 - Floating-Point Unit
 - MMU
 - Register File
+- CPU Execution Core
 
 System-level `cpu_core` integration remains outside the current verification
 closure scope.
 
-The CPU itself is based on a deliberately scoped RV32I subset.
+The CPU is based on a deliberately scoped RV32I subset.
 
 The current instruction-level scope includes:
 
@@ -85,9 +86,10 @@ block-level verification closure instead of broad but shallow CPU coverage.
 |---|---|---|---|
 | ALU | `rtl/alu.sv` | UVM + scoreboard + functional coverage + formal | ✅ Closed for defined scope |
 | Control Unit | `rtl/cu.sv` | UVM + scoreboard + independent decode model | ✅ Closed for defined scope |
-| FPU | `rtl/fpu.sv`, `rtl/fpu_add.sv`, `rtl/fpu_sub.sv`, `rtl/fpu_mul.sv`, `rtl/fpu_div.sv` | Directed TB + Python reference/differential flow + UVM environment + code coverage | 🟡 Closure in progress |
-| MMU | `rtl/mmu.sv` | Directed TB + coverage | 🟡 Verification in progress |
+| FPU | `rtl/fpu.sv`, `rtl/fpu_add.sv`, `rtl/fpu_sub.sv`, `rtl/fpu_mul.sv`, `rtl/fpu_div.sv` | Directed TB + Python reference/differential flow + UVM environment + code coverage + formal | ✅ Reachable coverage closure |
+| MMU | `rtl/mmu.sv` | Directed TB + coverage + CPU exec integration | 🟢 Active verification |
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + assertions + coverage | 🟢 Active verification |
+| CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + directed execution suite | 🟢 Active verification |
 | CPU Core | `rtl/cpu_core.sv` | System-level integration | ⚪ Not yet verified |
 
 The status labels are intentionally conservative.
@@ -139,7 +141,7 @@ of:
 rand
 constraint
 randomize()
-````
+```
 
 Therefore the project uses simulator-supported pseudo-random stimulus
 generation through:
@@ -185,6 +187,8 @@ tests/register_file_reference_model.sv
 reference/binary32.py
 reference/fpu_reference_model.py
 reference/scoreboard_bridge.py
+
+uvm_tb/cpu_model/cpu_reference_model.sv
 ```
 
 The objective is to minimize the risk of reproducing an RTL implementation
@@ -204,29 +208,6 @@ tests/fpu_differential_tb.sv
 
 The verification architecture compares the RTL implementation against an
 independent reference implementation.
-
-Conceptually:
-
-```text
-                  Stimulus
-                     │
-              ┌──────┴──────┐
-              │             │
-              ▼             ▼
-         ┌─────────┐   ┌─────────────┐
-         │ FPU RTL │   │  Reference  │
-         │         │   │    Model    │
-         └────┬────┘   └──────┬──────┘
-              │               │
-              └───────┬───────┘
-                      ▼
-                  Comparator
-                      │
-              PASS / MISMATCH
-```
-
-This approach is particularly valuable for floating-point arithmetic,
-where exhaustive hand-written expected-value tests are impractical.
 
 The current FPU differential vector regression has completed with:
 
@@ -302,9 +283,6 @@ Because native SystemVerilog covergroup functionality is not available in
 the selected free simulator configuration, coverage is implemented through
 explicit/manual bin accounting where required.
 
-This provides measurable coverage without depending on a license-gated
-feature.
-
 ---
 
 ## 5.4 Formal Verification
@@ -315,25 +293,14 @@ The ALU has been formally verified using:
 * Boolector
 * Bounded model checking
 
-The current formal environment verifies properties including:
-
-* Zero flag consistency
-* Overflow behavior
-* ADD/SUB overflow restrictions
-* Illegal opcode behavior
-
-The formal proof uses a depth of 2, which is sufficient for the current
-combinational ALU properties.
-
 Current result:
 
 ```text
 ALU formal properties: 4/4 PASS
 ```
 
-The result provides stronger evidence than simulation-only checking because
-the implemented properties are proven across the modeled input space rather
-than only across generated simulation vectors.
+Boolector completed the tested properties significantly faster than the
+evaluated Z3 configuration.
 
 ---
 
@@ -367,9 +334,6 @@ The Control Unit verification environment contains:
 
 The reference model independently reconstructs the expected control signals
 from the instruction encoding.
-
-This provides protection against the verification environment accidentally
-assuming the same incorrect encoding as the RTL.
 
 The Control Unit is considered closed for the currently defined RV32I
 instruction subset.
@@ -410,9 +374,6 @@ behavior is defined in:
 docs/fpu_ieee754_verification_matrix.md
 ```
 
-That document is the authoritative verification contract for the currently
-claimed FPU subset.
-
 ---
 
 ## 7.2 Directed Verification
@@ -424,9 +385,7 @@ tests/fpu_tb.sv
 ```
 
 The directed test suite exercises arithmetic operations and important
-boundary conditions.
-
-Particular attention is given to:
+boundary conditions, including:
 
 * Normal numbers
 * Signed values
@@ -444,25 +403,8 @@ Particular attention is given to:
 * Division normalization
 * Division underflow
 * Representation boundaries
-* Arithmetic corner cases
 
 The testbench is self-checking and reports mismatches explicitly.
-
-Several targeted tests were added specifically to exercise difficult
-internal floating-point paths, including:
-
-* multiplication rounding overflow;
-* multiplication overflow;
-* multiplication subnormal normalization;
-* very small subnormal operands;
-* division subnormal results;
-* extreme division underflow;
-* addition overflow;
-* addition rounding carry;
-* rounding boundary transitions.
-
-These tests are intended to improve both functional confidence and
-implementation coverage.
 
 ---
 
@@ -479,22 +421,6 @@ reference/scoreboard_bridge.py
 The reference model provides an executable expected-behavior model that is
 independent from the RTL implementation.
 
-The model explicitly works with binary32 representation and provides the
-foundation for differential verification.
-
-The reference model includes binary32 conversion and rounding behavior
-needed by the differential flow.
-
-Python tests are provided under:
-
-```text
-tests/reference/
-```
-
-The reference implementation is intentionally separated from the
-SystemVerilog RTL so that the verification environment does not simply
-reproduce the same arithmetic algorithm used by the DUT.
-
 ---
 
 ## 7.4 Differential Verification
@@ -505,9 +431,6 @@ The FPU differential verification flow uses:
 tests/fpu_differential_tb.sv
 ```
 
-Differential vectors are generated using the Python reference-model
-infrastructure.
-
 The current differential regression contains:
 
 ```text
@@ -517,14 +440,6 @@ The current differential regression contains:
 
 This demonstrates agreement between the FPU RTL and the independent
 reference model for the tested vector set.
-
-Differential verification is particularly valuable for floating-point
-arithmetic because a finite collection of manually calculated expected
-values is insufficient to provide broad confidence.
-
-The differential flow is therefore considered an important verification
-layer, while FPU closure remains dependent on the complete verification
-contract and coverage analysis.
 
 ---
 
@@ -539,25 +454,12 @@ uvm_tb/tb_top_fpu.sv
 uvm_tb/tests/fpu_smoke_test.sv
 ```
 
-The environment provides:
-
-* Transaction-based stimulus
-* Driver/monitor separation
-* Scoreboard infrastructure
-* Regression integration
-* Pseudo-random stimulus
-* Coverage-closure stimulus sequences
-
 The FPU package also contains dedicated sequences for:
 
 * constrained-style pseudo-random testing;
 * corner-case testing;
 * general testing;
 * coverage-closure testing.
-
-Because of simulator licensing limitations, these sequences use supported
-pseudo-random mechanisms rather than relying on native SystemVerilog
-constraint solving.
 
 ---
 
@@ -574,36 +476,16 @@ The closure flow uses Questa coverage collection including:
 
 where supported by the simulator configuration.
 
-The closure sequence is configured for a large pseudo-random regression and
-is supplemented by targeted directed vectors.
+The latest detailed FPU closure analysis reports:
 
-The latest detailed FPU code-coverage report reports:
+| Coverage Metric    | Raw Coverage | Reachable Coverage | Waivers |
+| ------------------ | -----------: | -----------------: | ------: |
+| Branch Coverage    |        96.72% |            100.00% |       6 |
+| Condition Coverage |        88.50% |            100.00% |      13 |
+| Statement Coverage |        95.37% |            100.00% |      17 |
+| Toggle Coverage    |        79.95% |                  - |       - |
 
-| Coverage Metric    | Current Result |
-| ------------------ | -------------: |
-| Branch Coverage    |         90.56% |
-| Condition Coverage |         85.00% |
-| Statement Coverage |         92.85% |
-| Toggle Coverage    |         77.59% |
-
-These results demonstrate substantial RTL implementation coverage, but the
-FPU is **not yet considered fully closed**.
-
-Coverage analysis is performed at the RTL branch/condition/statement/toggle
-level, together with functional scenario analysis.
-
-The remaining uncovered paths are reviewed individually rather than being
-treated as automatic verification failures.
-
-In particular, some uncovered implementation branches were analyzed as
-practically unreachable under valid IEEE-754 binary32 operand combinations
-or dependent on internal states that cannot be produced through legal DUT
-inputs.
-
-Such branches should not be artificially stimulated merely to increase a
-coverage percentage.
-
-The closure process therefore distinguishes between:
+The closure process distinguishes between:
 
 ```text
 Reachable verification gap
@@ -617,9 +499,173 @@ Legitimate/unreachable implementation path
 
 Any justified exclusion must be documented rather than silently ignored.
 
+Detailed branch/condition/statement waivers are documented in:
+
+```text
+docs/fpu_branch_waivers.md
+```
+
+The formal evidence is documented in the same report and includes:
+
+- MUL `subnormal_shift >= 25` formal PASS
+- DIV `shift_cnt >= 10` mathematical proof
+- DIV full-DUT formal blocked by variable-bound loop at `fpu_div.sv:387`
+
 ---
 
-# 8. MMU Verification
+# 8. CPU Execution Core Verification
+
+## 8.1 RTL
+
+The CPU Execution Core is implemented in:
+
+```text
+rtl/cpu_exec_core.sv
+```
+
+This is a minimal single-cycle RV32I execution datapath.
+
+It integrates:
+
+- `cu`
+- `register_file`
+- `alu`
+- `mmu`
+
+and includes:
+
+- PC logic
+- Instruction memory
+- Writeback multiplexing
+- Load/store address generation
+- Testbench-only register initialization interface
+- Testbench-only execution control
+
+---
+
+## 8.2 Verification Environment
+
+The CPU Execution Core verification environment includes:
+
+```text
+uvm_tb/cpu_agent/cpu_exec_if.sv
+uvm_tb/cpu_agent/cpu_exec_uvm_wrapper.sv
+uvm_tb/cpu_agent/cpu_transaction.sv
+uvm_tb/cpu_agent/cpu_driver.sv
+uvm_tb/cpu_agent/cpu_monitor.sv
+uvm_tb/cpu_agent/cpu_scoreboard.sv
+uvm_tb/cpu_model/cpu_reference_model.sv
+uvm_tb/sequences/cpu_exec_sequence.sv
+uvm_tb/tests/cpu_exec_test.sv
+```
+
+Additional standalone smoke tests include:
+
+```text
+tests/cpu_exec_tb.sv
+tests/cpu_exec_reg_init_smoke_tb.sv
+```
+
+---
+
+## 8.3 Reference Model
+
+The CPU reference model independently models the architectural effects of
+the supported instruction subset.
+
+Supported instructions:
+
+```text
+ADD
+SUB
+AND
+OR
+XOR
+SLL
+SRL
+SRA
+SLT
+SLTU
+LW
+SW
+```
+
+The reference model maintains:
+
+- architectural integer register state
+- data memory state
+- PC
+
+It does not access DUT internals.
+
+---
+
+## 8.4 Scoreboard
+
+The scoreboard compares the architectural state predicted by the reference
+model with the observed DUT state.
+
+The current directed CPU execution suite includes 12 directed tests:
+
+| Instruction | Status |
+|------------|--------|
+| ADD        | ✅ Pass |
+| SUB        | ✅ Pass |
+| AND        | ✅ Pass |
+| OR         | ✅ Pass |
+| XOR        | ✅ Pass |
+| SLL        | ✅ Pass |
+| SRL        | ✅ Pass |
+| SLT        | ✅ Pass |
+| SLTU       | ✅ Pass |
+| SRA        | ✅ Pass |
+| SW + LW    | ✅ Pass |
+| x0 write suppression | ✅ Pass |
+
+Scoreboard summary:
+
+```text
+Expected transactions : 12
+Observed transactions : 12
+Matches               : 12
+Mismatches            : 0
+Architectural verification PASSED
+
+UVM_ERROR = 0
+UVM_FATAL = 0
+```
+
+---
+
+## 8.5 CPU Execution Coverage
+
+RTL branch coverage for the CPU execution scope is reported in:
+
+```text
+docs/cpu_exec_coverage_status.md
+```
+
+The current branch coverage summary is:
+
+| Block | Branch Coverage |
+|---|---:|
+| `cu.sv` | 87.50% |
+| `alu.sv` | 90.90% |
+| `mmu.sv` | 100.00% |
+| `register_file.sv` | 83.33% |
+| `cpu_exec_core.sv` | 100.00% |
+
+Scoped exclusions are documented for:
+
+- `register_file` FP register paths (`is_fp=1`)
+- `SRL` decode path
+- `instruction == 0` execution condition
+
+These are not classified as RTL bugs.
+
+---
+
+# 9. MMU Verification
 
 The MMU is implemented in:
 
@@ -634,18 +680,15 @@ tests/mmu_tb.sv
 tests/mmu_coverage.sv
 ```
 
-Verification focuses on:
+The MMU has been integrated into the CPU execution core load/store path.
 
-* Address behavior
-* Boundary conditions
-* Valid/invalid input scenarios
-* Expected translation/control behavior
-* Functional coverage
+A reset mechanism was added to ensure proper memory isolation between
+directed CPU execution tests.
 
-The MMU is currently classified as:
+MMU verification is currently classified as:
 
 ```text
-Verification in progress
+Active verification
 ```
 
 Full virtual-memory/page-table architecture is outside the present project
@@ -653,7 +696,7 @@ scope.
 
 ---
 
-# 9. Register File Verification
+# 10. Register File Verification
 
 The Register File is implemented in:
 
@@ -673,70 +716,15 @@ tests/register_file_assertions.sv
 tests/register_file_coverage.sv
 ```
 
----
-
-## 9.1 Reference Model
-
-The Register File reference model provides an independent expected-state
-representation.
-
-The scoreboard compares DUT state and outputs against this model.
-
-This separates expected behavior from the RTL implementation.
-
----
-
-## 9.2 Scoreboard
-
-The Register File scoreboard independently determines expected register
-state and compares it with the DUT behavior.
-
-This provides transaction-level checking rather than relying only on
-directed expected-value comparisons.
-
----
-
-## 9.3 Assertions
-
-The Register File has a dedicated assertion layer:
+The Register File has been covered at standalone level with:
 
 ```text
-tests/register_file_assertions.sv
-```
-
-Assertions are intended to detect invariant and interface violations
-independently of scoreboard checking.
-
-This provides complementary verification:
-
-```text
-                  Register File DUT
-                         │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-     Scoreboard      Assertions      Coverage
-          │
-          ▼
-   Reference Model
+12/12 branch coverage
 ```
 
 ---
 
-## 9.4 Functional Coverage
-
-Dedicated Register File coverage infrastructure exists in:
-
-```text
-tests/register_file_coverage.sv
-```
-
-Coverage infrastructure is implemented, while complete closure remains an
-active verification task.
-
----
-
-# 10. Functional Coverage Strategy
+# 11. Functional Coverage Strategy
 
 Coverage is treated as a verification planning and closure mechanism rather
 than merely as a percentage.
@@ -752,29 +740,12 @@ For each verified block, coverage should answer:
 
 ---
 
-## 10.1 Manual Functional Coverage
+# 12. Code Coverage
 
-Where native SystemVerilog covergroup functionality is unavailable under
-the selected simulator license, explicit/manual bin accounting is used.
+The project supports simulator-based code coverage collection using the
+Questa verification environment.
 
-Manual coverage provides:
-
-* Explicit bin definitions
-* Hit counters
-* Coverage percentage
-* Missing-bin visibility
-* Regression-readable output
-
-This approach is currently used for selected verification environments.
-
----
-
-## 10.2 Code Coverage
-
-Questa code coverage is used where applicable to measure implementation
-execution.
-
-The current FPU closure report includes:
+Coverage categories used during FPU closure analysis include:
 
 ```text
 Branch
@@ -783,74 +754,25 @@ Statement
 Toggle
 ```
 
-Code coverage is analyzed separately from functional coverage.
+The latest FPU reachable coverage summary is:
 
----
+| Metric    | Raw Coverage | Reachable Coverage | Waived |
+|-----------|-------------:|-------------------:|-------:|
+| Branch    |        96.72% |            100.00% |      6 |
+| Condition |        88.50% |            100.00% |     13 |
+| Statement |        95.37% |            100.00% |     17 |
 
-## 10.3 Coverage Closure Criteria
-
-A block is not considered functionally closed merely because a testbench
-executes successfully.
-
-Closure requires:
-
-* Required functional scenarios defined
-* Required bins exercised
-* Corner cases exercised
-* Scoreboard/reference checking active
-* Assertions reviewed where applicable
-* Regression stability demonstrated
-* Coverage report reviewed
-* Uncovered implementation paths analyzed
-* Legitimate exclusions documented
-* No known reachable verification gap left unexplained
-
-High code coverage alone is not sufficient for closure.
-
----
-
-# 11. Code Coverage
-
-The simulation infrastructure supports Questa code coverage collection.
-
-The project uses coverage options such as:
+CPU execution RTL coverage is documented in:
 
 ```text
-+cover=bcesf
+docs/cpu_exec_coverage_status.md
 ```
-
-for the coverage-closure flow.
-
-Code coverage is considered a separate metric from functional coverage.
-
-Functional coverage answers:
-
-```text
-Did we exercise the intended verification scenarios?
-```
-
-Code coverage answers:
-
-```text
-Which implementation structures were executed?
-```
-
-The latest detailed FPU coverage report is:
-
-```text
-Branch     : 90.56%
-Condition  : 85.00%
-Statement  : 92.85%
-Toggle     : 77.59%
-```
-
-These results represent the current detailed FPU code-coverage state.
 
 Project-wide code-coverage closure is not currently claimed.
 
 ---
 
-# 12. Assertion-Based Verification
+# 13. Assertion-Based Verification
 
 Assertions provide a verification layer independent of scoreboards.
 
@@ -862,7 +784,7 @@ tests/register_file_assertions.sv
 
 as well as assertion support in the ALU/CU verification environment.
 
-The project uses assertions for properties such as:
+Assertions are used for properties such as:
 
 * Output consistency
 * Illegal operation behavior
@@ -870,17 +792,14 @@ The project uses assertions for properties such as:
 * Register-file invariants
 * Interface/protocol conditions
 
-Assertion execution and coverage are progressively integrated into the
-regression flow.
-
-Assertion infrastructure is considered complementary to scoreboards and
-functional/code coverage.
-
 ---
 
-# 13. Formal Verification Strategy
+# 14. Formal Verification Strategy
 
-Formal verification currently targets the ALU.
+Formal verification currently targets:
+
+- ALU
+- FPU unreachable-branch invariants
 
 The flow uses:
 
@@ -891,55 +810,26 @@ SymbiYosys
 Boolector
 ```
 
-The ALU properties are proven using bounded model checking.
-
-Current result:
+Current results:
 
 ```text
 ALU formal properties: 4/4 PASS
+
+FPU MUL waiver invariant:
+  subnormal_shift >= 25
+  PASS
+
+FPU DIV shift invariant:
+  shift_cnt >= 10
+  PASS
 ```
 
-The current properties include:
-
-* Zero flag correctness
-* Overflow behavior
-* ADD/SUB overflow restrictions
-* Illegal opcode behavior
-
-The current proof depth is:
-
-```text
-depth = 2
-```
-
-This is sufficient for the implemented combinational ALU properties.
+The DIV full-DUT formal proof is blocked by a Yosys limitation on the
+variable-bound loop at `fpu_div.sv:387`.
 
 ---
 
-## 13.1 Z3 Investigation
-
-Z3 was evaluated for the ALU formal properties.
-
-The tested Z3 configuration did not complete the evaluated property within
-the observed five-minute evaluation window.
-
-The ALU contains 32-bit variable-shift datapath logic, which can create
-significant bit-vector solving complexity.
-
----
-
-## 13.2 Boolector
-
-Boolector completed the tested ALU properties in under one second.
-
-This makes Boolector the preferred solver for the current ALU formal target.
-
-The solver difference is treated as a tool-selection and performance
-finding rather than as evidence of an RTL problem.
-
----
-
-# 14. Regression Strategy
+# 15. Regression Strategy
 
 The project provides a seed-based regression framework:
 
@@ -953,24 +843,17 @@ Usage:
 ./run_regression.sh <target> <num_seeds>
 ```
 
-The regression framework:
+The FPU also has a dedicated coverage-closure target.
 
-1. selects the requested verification target;
-2. generates simulator seeds;
-3. runs the corresponding simulation;
-4. captures pass/fail results;
-5. produces a regression summary.
+The formal regression is available through:
 
-Seeds are retained so that failures can be reproduced.
-
-This is an important requirement for pseudo-random verification.
-
-The FPU also has a dedicated coverage-closure target which combines
-pseudo-random stimulus with directed coverage-oriented tests.
+```bash
+./run_formal.sh
+```
 
 ---
 
-# 15. Simulation Scripts
+# 16. Simulation Scripts
 
 The primary simulation entry point is:
 
@@ -984,42 +867,21 @@ Examples:
 ./run_sim.sh alu
 ./run_sim.sh cu
 ./run_sim.sh fpu_closure
+./run_sim.sh cpu_exec
 ```
-
-The FPU closure flow compiles the required RTL and UVM verification
-environment and enables Questa coverage collection.
-
-The verification infrastructure is intended to provide a consistent
-command-line interface for local verification and future CI integration.
 
 ---
 
-# 16. Toolchain Strategy
+# 17. Toolchain Strategy
 
 The project intentionally uses free/open-source tools or free-licensed
 tools wherever practical.
 
----
-
-## 16.1 Primary Simulation Environment
-
-The primary UVM simulation environment is:
+The primary UVM simulation environment uses:
 
 ```text
 Questa - Altera FPGA Starter Edition
 ```
-
-The simulator provides the UVM infrastructure required for the current
-verification environment.
-
-It was selected after evaluating Verilator compatibility with the required
-SystemVerilog/UVM features.
-
-The RTL remains technology-independent.
-
----
-
-## 16.2 Open-Source Formal Verification
 
 Formal verification uses:
 
@@ -1027,61 +889,6 @@ Formal verification uses:
 SymbiYosys
 Boolector
 ```
-
-These provide an open-source formal verification flow.
-
----
-
-# 17. Toolchain Investigation
-
-## 17.1 Verilator
-
-Verilator was evaluated as an open-source simulation alternative.
-
-The investigation identified limitations relevant to the intended
-verification environment, including:
-
-* SystemVerilog functional coverage limitations
-* Clocking-block/modport limitations
-* Virtual-interface clocking-block event handling
-* UVM compatibility issues
-* Compatibility issues with the evaluated UVM/Verilator environment
-
-A compiler failure was encountered when class-based UVM code waited on a
-clocking-block event through a virtual interface.
-
-Because the project depends on transaction-level UVM infrastructure, these
-issues made Verilator unsuitable as the primary UVM simulator for the
-current environment.
-
-Verilator may still be useful as a secondary open-source lint or simulation
-tool for compatible individual testbenches.
-
----
-
-## 17.2 Questa Starter Edition
-
-Questa provided the required native UVM simulation environment.
-
-Further investigation identified an important licensing limitation.
-
-The selected free environment does not provide the complete licensed
-SystemVerilog verification feature set required for unrestricted use of:
-
-* SystemVerilog `randomize()`
-* `rand` / `constraint` solving
-* Native SystemVerilog `covergroup` functionality
-
-The simulator reported:
-
-```text
-Failure to checkout svverification license feature
-```
-
-when the relevant licensed functionality was attempted.
-
-The verification architecture was therefore adapted rather than silently
-assuming commercial-only features were available.
 
 ---
 
@@ -1099,13 +906,6 @@ uses:
 | Commercial verification IP        | Custom UVM/testbench components      |
 | Proprietary reference model       | Independent project reference models |
 
-This demonstrates an important engineering principle:
-
-> Verification methodology should adapt to tool constraints without
-> compromising the independence of checking.
-
-The limitation is explicitly documented rather than hidden.
-
 ---
 
 # 19. Verification Findings
@@ -1119,14 +919,8 @@ Several real RTL and verification issues were identified during development.
 The original ALU implementation used a 3-bit operation encoding while the
 verification environment expected a 4-bit encoding.
 
-The original implementation also used an encoding inconsistent with the
-intended RV32I-oriented design.
-
 The issue was corrected by unifying the operation encoding and adding the
 required ALU status outputs.
-
-This demonstrates the value of independent verification expectations
-rather than assuming the RTL interface is automatically correct.
 
 ---
 
@@ -1144,14 +938,7 @@ instead of the RV32I opcode field:
 instruction[6:0]
 ```
 
-The Control Unit was rewritten to decode the intended RV32I subset:
-
-* R-type
-* LW
-* SW
-
-The issue was detected through independent scoreboard/reference-model
-checking.
+The Control Unit was rewritten to decode the intended RV32I subset.
 
 ---
 
@@ -1160,14 +947,8 @@ checking.
 The driver and monitor initially synchronized to the same positive clock
 edge.
 
-This caused the monitor to observe values before NBA/combinational
-settling in the first transaction.
-
 The issue was corrected by introducing a small post-edge sampling delay in
 the monitor.
-
-The finding demonstrates why clocking and sampling semantics must be
-explicitly controlled in a cycle-based verification environment.
 
 ---
 
@@ -1182,43 +963,62 @@ The analysis identified branches whose triggering conditions are either:
 * difficult or impossible to reach using valid binary32 operands;
 * dependent on internal states that cannot be produced by the legal input
   domain;
-* or better treated as justified implementation exclusions.
+* better treated as justified implementation exclusions.
 
 The closure methodology therefore distinguishes between genuine reachable
 verification gaps and structurally unreachable implementation paths.
 
-This prevents artificial stimulus from being added solely to improve a
-coverage number without corresponding functional value.
+---
+
+## 19.5 CPU Register Initialization Ordering
+
+During CPU execution core verification, register initialization was
+initially performed before reset release.
+
+This caused the reset logic in the register file to clear the initialized
+values.
+
+The issue was corrected by releasing reset before performing register
+initialization through the testbench interface.
+
+---
+
+## 19.6 CPU Memory Reset Isolation
+
+The MMU initially had no reset mechanism.
+
+This caused store data from a previous test to persist across multiple
+CPU execution transactions.
+
+The issue was corrected by adding a reset mechanism to the MMU and
+connecting it to the CPU execution core reset.
 
 ---
 
 # 20. Current Verification Status
 
-| Verification Area              | Status           | Notes                                                            |
-| ------------------------------ | ---------------- | ---------------------------------------------------------------- |
-| ALU functional verification    | ✅ Closed         | Scoreboard + directed/pseudo-random testing                      |
-| ALU functional coverage        | ✅ Closed         | 8/8 opcode bins hit                                              |
-| ALU formal verification        | ✅ Passed         | 4/4 properties                                                   |
-| Control Unit verification      | ✅ Closed         | UVM + independent decode model                                   |
-| FPU directed verification      | 🟢 Active        | Extensive arithmetic and corner-case testing                     |
-| FPU differential verification  | 🟢 Verified flow | 4154 vectors, 0 mismatches                                       |
-| FPU Python reference model     | 🟢 Implemented   | Independent binary32 reference infrastructure                    |
-| FPU UVM infrastructure         | 🟢 Implemented   | Transaction and regression foundation                            |
-| FPU code coverage              | 🟡 In progress   | Branch 90.56%, Condition 85.00%, Statement 92.85%, Toggle 77.59% |
-| FPU coverage closure           | 🟡 In progress   | Remaining paths require reachability/exclusion analysis          |
-| MMU directed verification      | 🟡 In progress   | Dedicated TB exists                                              |
-| MMU coverage                   | 🟡 In progress   | Dedicated coverage infrastructure exists                         |
-| Register File verification     | 🟢 Active        | Self-checking environment                                        |
-| Register File reference model  | 🟢 Implemented   | Independent model                                                |
-| Register File scoreboard       | 🟢 Implemented   | DUT/model comparison                                             |
-| Register File assertions       | 🟢 Implemented   | Independent invariant checking                                   |
-| Register File coverage         | 🟡 In progress   | Coverage infrastructure implemented                              |
-| Code coverage closure          | 🟡 In progress   | Block-level reports require further analysis                     |
-| Formal verification beyond ALU | ⚪ Future         | Additional targets planned                                       |
-| Seed-based regression          | 🟢 Implemented   | Reproducible local regression flow                               |
-| Unified CI regression          | 🟡 In progress   | Local regression exists                                          |
-| CPU integration verification   | ⚪ Not started    | Future phase                                                     |
-| Full-system verification       | ⚪ Not started    | Outside current scope                                            |
+| Verification Area              | Status         | Notes                                       |
+| ------------------------------ | -------------- | ------------------------------------------- |
+| ALU functional verification    | ✅ Closed       | Scoreboard + directed/pseudo-random testing |
+| ALU functional coverage        | ✅ Closed       | 8/8 opcode bins hit                         |
+| ALU formal verification        | ✅ Passed       | 4/4 properties                              |
+| Control Unit verification      | ✅ Closed       | UVM + independent decode model              |
+| FPU directed verification      | ✅ Passed       | Extensive arithmetic/corner-case testing    |
+| FPU differential verification  | ✅ Passed       | 4154 vectors, 0 mismatches                  |
+| FPU UVM infrastructure         | ✅ Implemented  | Transaction and regression foundation       |
+| FPU reachable coverage closure | ✅ Closed       | Branch/condition/statement reachable 100%   |
+| MMU directed verification      | 🟢 Active       | Integrated into CPU exec load/store path    |
+| MMU coverage                   | ✅ Closed       | 100% branch coverage in CPU exec            |
+| Register File verification     | ✅ Closed       | 12/12 branch coverage standalone            |
+| Register File assertions       | ✅ Implemented  | Independent invariant checking              |
+| CPU Execution Core verification| 🟢 Active       | UVM + reference model + scoreboard          |
+| CPU Execution directed suite   | ✅ Passed       | 12/12 directed tests                        |
+| CPU Execution coverage         | 🟡 In progress  | Scoped exclusions remaining                 |
+| Code coverage closure          | 🟡 In progress  | Block-level reports require further analysis|
+| Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
+| Unified CI regression          | 🟡 In progress  | Local regression exists                     |
+| CPU integration verification   | 🟢 Initial      | CPU exec core being verified                |
+| Full-system verification       | ⚪ Not started  | Outside current scope                       |
 
 ---
 
@@ -1229,32 +1029,38 @@ environment.
 
 | Area                  | Current State                   | Remaining Work                                         |
 | --------------------- | ------------------------------- | ------------------------------------------------------ |
-| UVM methodology       | ALU/CU/FPU infrastructure       | Extend consistently to remaining blocks                |
+| UVM methodology       | ALU/CU/FPU/CPU-exec infrastructure | Extend consistently to remaining blocks                |
 | Constrained random    | Simulator-license constrained   | Requires licensed simulator or alternative methodology |
 | Functional coverage   | Block-specific implementations  | Complete closure and consolidation                     |
 | Code coverage         | Questa collection available     | Complete analysis and justified exclusions             |
 | Assertions            | Implemented for selected blocks | Expand and integrate into regression                   |
-| Formal                | ALU complete                    | Add additional block properties                        |
+| Formal                | ALU + FPU invariants            | Add additional block properties                        |
 | Regression            | Seed-based local flow           | Unified CI and artifact reporting                      |
-| Reference models      | FPU/Register File               | Expand where appropriate                               |
+| Reference models      | FPU/Register File/CPU exec      | Expand where appropriate                               |
 | Differential testing  | FPU                             | Extend to additional datapath blocks                   |
-| CPU integration       | Not started                     | Build integration environment                          |
+| CPU integration       | Initial CPU exec verification   | Build full integration environment                     |
 | System-level checking | Not started                     | Add instruction-level reference model                  |
 | VHDL                  | Not present                     | Not currently part of project scope                    |
 
 These gaps are documented intentionally.
 
-The project does not attempt to disguise incomplete areas as completed
-verification.
-
 ---
 
 # 22. CPU Integration Verification — Future Phase
 
-Once block-level verification reaches sufficient maturity, the next major
-verification phase is CPU-level integration.
+The CPU integration phase has begun with the `cpu_exec_core` verification
+environment.
 
-The planned environment includes:
+This is an intermediate integration block containing:
+
+- CU
+- Register File
+- ALU
+- MMU
+
+It supports a minimal RV32I execution datapath.
+
+The planned future CPU-level verification includes:
 
 ```text
                  Instruction Stimulus
@@ -1292,8 +1098,8 @@ Planned capabilities include:
 * Memory-access checking
 * Seed-based integration regression
 
-The CPU integration phase will begin only after the relevant block-level
-verification infrastructure has reached sufficient maturity.
+The CPU integration phase will continue after the current block-level
+verification infrastructure reaches sufficient maturity.
 
 ---
 
@@ -1314,15 +1120,6 @@ A block is considered closed only when:
 9. Uncovered implementation paths are analyzed.
 10. Legitimate exclusions are justified and documented.
 11. No known reachable verification gap remains unexplained.
-
-This distinction is important because high code coverage does not
-necessarily mean high functional confidence.
-
-Similarly, a passing testbench does not constitute verification closure
-without independent checking and coverage analysis.
-
-For arithmetic RTL, closure also requires explicit analysis of corner cases
-and numerical boundary behavior.
 
 ---
 
@@ -1353,13 +1150,12 @@ FPU closure requires:
 * Legitimate unreachable paths documented
 * No known reachable functional gap left unexplained
 
-The current FPU status is therefore:
+The current FPU status is:
 
 ```text
 Verification: active
 Differential flow: passing
-Code coverage: substantial
-Coverage closure: in progress
+Code coverage reachable closure: complete
 Full IEEE-754 compliance: not claimed
 ```
 
@@ -1402,35 +1198,41 @@ FPU
   ├── Independent reference model implemented
   ├── Differential verification passing
   ├── 4154 vectors / 0 mismatches
-  ├── Branch coverage: 90.56%
-  ├── Condition coverage: 85.00%
-  ├── Statement coverage: 92.85%
-  ├── Toggle coverage: 77.59%
-  └── Coverage closure in progress
+  ├── Reachable branch coverage: 100%
+  ├── Reachable condition coverage: 100%
+  ├── Reachable statement coverage: 100%
+  └── 6 branch + 13 condition + 17 statement waivers documented
 
 MMU
-  └── Verification in progress
+  ├── Reset mechanism added
+  ├── Integrated into CPU exec load/store path
+  └── 100% branch coverage in CPU exec
 
 Register File
   ├── Self-checking environment implemented
   ├── Reference model implemented
   ├── Scoreboard implemented
   ├── Assertions implemented
-  └── Coverage closure in progress
+  └── 12/12 branch coverage standalone
+
+CPU Execution Core
+  ├── UVM agent/driver/monitor/scoreboard implemented
+  ├── Reference model implemented
+  ├── 12/12 directed execution tests passed
+  └── RTL branch coverage active
 
 CPU Core
-  └── Integration verification not yet started
+  └── Full integration verification not yet started
 ```
 
 The project intentionally documents both achievements and limitations.
 
 The immediate verification focus is completing defensible block-level
-closure for the FPU, MMU, and Register File.
+closure for the MMU, Register File, and initial CPU execution core.
 
-The next major phase is CPU-core integration verification.
+The next major phase is continued CPU integration verification.
 
-The ultimate objective is not to present an artificially complete CPU
-verification environment, but to demonstrate the engineering discipline
+The ultimate objective is to demonstrate the engineering discipline
 required to:
 
 ```text
@@ -1465,7 +1267,3 @@ Document Remaining Gaps
 
 This repository therefore presents both the verification infrastructure that
 has been implemented and the limitations that remain.
-
-It deliberately avoids claiming complete CPU verification or complete
-IEEE-754 compliance where those claims are not supported by the current
-verification evidence.

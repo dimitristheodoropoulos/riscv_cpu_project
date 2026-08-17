@@ -706,4 +706,39 @@ module fp_mul (
 
     end
 
+`ifdef FORMAL
+
+    // ============================================================
+    // FORMAL REACHABILITY PROOF
+    // ============================================================
+    //
+    // In the subnormal-result path:
+    //
+    //     exp_product < -126
+    //
+    // therefore:
+    //
+    //     exp_product <= -127
+    //
+    // and:
+    //
+    //     subnormal_shift = -exp_product - 102
+    //                    >= 127 - 102
+    //                    = 25
+    //
+    // This proves that the false outcomes of:
+    //
+    //     subnormal_shift > 0
+    //     subnormal_shift >= 2
+    //     subnormal_shift >= 3
+    //
+    // are unreachable.
+    //
+    always @(*) begin
+        if (exp_product < -14'sd126)
+            assert(subnormal_shift >= 25);
+    end
+
+`endif
+
 endmodule

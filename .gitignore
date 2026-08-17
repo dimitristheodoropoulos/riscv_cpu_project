@@ -131,3 +131,17 @@ Thumbs.db
 # ------------------------------------------------------------
 
 .github/workflows/.cache/
+# Generated / simulation output
+output/
+sim/work/
+sim/output/
+sim/*.ucdb
+sim/*.txt
+
+# Formal generated run directories
+formal/*/*/
+formal/*/*/*/
+
+# Backup files
+*.bak
+*.log

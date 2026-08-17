@@ -1,0 +1,14 @@
+[options]
+mode prove
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -formal -sv fpu_mul.sv
+read_verilog -formal -sv fpu_mul_waiver_top.sv
+prep -top fpu_mul_waiver_top
+
+[files]
+../../rtl/fpu_mul.sv
+fpu_mul_waiver_top.sv

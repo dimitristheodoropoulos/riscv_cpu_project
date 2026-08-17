@@ -66,6 +66,37 @@ cpu)
     TESTNAME=""
     ;;
 
+cpu_exec)
+    echo "3. Compiling CPU execution datapath + UVM testbench..."
+
+    vlog -sv +cover=bcesf \
+        +incdir+"$PROJECT_ROOT/uvm_tb/cpu_agent" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/cpu_env" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/cpu_model" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/sequences" \
+        +incdir+"$PROJECT_ROOT/uvm_tb/tests" \
+        "$PROJECT_ROOT/rtl/alu.sv" \
+        "$PROJECT_ROOT/rtl/cu.sv" \
+        "$PROJECT_ROOT/rtl/mmu.sv" \
+        "$PROJECT_ROOT/rtl/register_file.sv" \
+        "$PROJECT_ROOT/rtl/cpu_exec_core.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_exec_if.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_transaction.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_driver.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_monitor.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_agent.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_model/cpu_reference_model.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_scoreboard.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_env/cpu_env.sv" \
+        "$PROJECT_ROOT/uvm_tb/sequences/cpu_exec_sequence.sv" \
+        "$PROJECT_ROOT/uvm_tb/tests/cpu_exec_test.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_exec_uvm_wrapper.sv" \
+        "$PROJECT_ROOT/uvm_tb/tb_top_cpu_exec.sv"
+
+    TOP="tb_top_cpu_exec"
+    TESTNAME="cpu_exec_test"
+    ;;
+
 fpu)
     echo "3. Compiling FPU RTL + standalone testbench..."
 
@@ -195,6 +226,7 @@ fpu_sva)
     echo "  ./run_sim.sh alu"
     echo "  ./run_sim.sh cu"
     echo "  ./run_sim.sh cpu"
+    echo "  ./run_sim.sh cpu_exec"
     echo "  ./run_sim.sh fpu"
     echo "  ./run_sim.sh fpu_smoke"
     echo "  ./run_sim.sh fpu_long"
@@ -220,6 +252,7 @@ if [ -n "$TESTNAME" ]; then
 else
 
     vsim -c "work.$TOP" \
+        -onfinish stop \
         -coverage \
         -voptargs=+cover \
         -do "run -all; coverage save $OUTPUT_DIR/${TARGET}.ucdb; quit -f"

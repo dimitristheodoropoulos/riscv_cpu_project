@@ -1,0 +1,15 @@
+[options]
+mode cover
+depth 2
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -formal -sv fpu_mul.sv
+read_verilog -formal -sv fpu_mul_formal_top.sv
+prep -top fpu_mul_formal_top
+
+[files]
+../../rtl/fpu_mul.sv
+fpu_mul_formal_top.sv

@@ -1,5 +1,6 @@
 module mmu (
     input         clk,
+    input         reset,
     input  [31:0] virtual_addr,
     input  [31:0] data_in,
     input         mem_read,
@@ -10,17 +11,21 @@ module mmu (
 );
     reg [31:0] memory [0:255];
 
-    assign physical_addr = virtual_addr; // direct mapping, unchanged
+    assign physical_addr = virtual_addr;
 
-    wire [7:0] mem_index = physical_addr[7:0]; // masked to 256-word range
+    wire [7:0] mem_index = physical_addr[7:0];
 
-    // Synchronous write (real RAM behavior)
     always @(posedge clk) begin
-        if (mem_write)
+        if (reset) begin
+            for (int i = 0; i < 256; i++) begin
+                memory[i] <= 32'b0;
+            end
+        end
+        else if (mem_write) begin
             memory[mem_index] <= data_in;
+        end
     end
 
-    // Combinational read + ready
     always @(*) begin
         data_out  = mem_read ? memory[mem_index] : 32'b0;
         mem_ready = mem_read || mem_write;
