@@ -252,6 +252,40 @@ package cpu_driver_pkg;
 
 
             // ----------------------------------------------------
+            // INITIALIZE FLOATING-POINT REGISTERS
+            // ----------------------------------------------------
+
+            for (i = 1; i < 32; i++) begin
+
+                if (tr.init_fp_regs[i] != 32'h00000000) begin
+
+                    @(negedge vif.clk);
+
+                    vif.reg_init_addr =
+                        i;
+
+                    vif.reg_init_data =
+                        tr.init_fp_regs[i];
+
+                    vif.reg_init_is_fp =
+                        1'b1;
+
+                    vif.reg_init_enable =
+                        1'b1;
+
+                    @(posedge vif.clk);
+
+                    vif.reg_init_enable =
+                        1'b0;
+
+                end
+
+            end
+
+
+
+
+            // ----------------------------------------------------
             // CLEAR INITIALIZATION CONTROLS
             // ----------------------------------------------------
 

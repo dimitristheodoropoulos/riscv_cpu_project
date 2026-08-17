@@ -28,6 +28,9 @@ package cpu_exec_sequence_pkg;
     //   LW
     //   ADD writing to x0
     //   Unsupported R-type funct3 (CU/ALU default)
+    //   Unsupported SRL (funct3=101, funct7[5]=0 -> CU default)
+    //   Zero instruction PC behavior
+    //   FP register initialization via testbench interface
     //
     // Each test is a separate transaction.
     //
@@ -553,6 +556,75 @@ package cpu_exec_sequence_pkg;
 
 
         // ============================================================
+        // Test 7b: Unsupported SRL
+        //
+        //   SRL x3, x1, x2
+        //
+        //   funct3  = 101
+        //   funct7  = 0000000
+        //
+        // This specifically exercises the funct7[5] == 0 branch
+        // in cu.sv:
+        //
+        //   ALU_op = funct7[5] ? 4'b0101 : 4'b1111;
+        //
+        // SRL is intentionally unsupported by this CPU, so the
+        // control unit selects ALU_op = 4'b1111.
+        // ============================================================
+
+        task automatic test_srl_unsupported();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_srl_unsupported");
+
+            start_item(tr);
+
+            tr.instr_count = 1;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // SRL x3, x1, x2
+            // funct7=0000000, rs2=2, rs1=1,
+            // funct3=101, rd=3, opcode=0110011
+            tr.instr_mem[0] =
+                32'h0020D1B3;
+
+            tr.init_int_regs[1] =
+                32'h80000000;
+
+            tr.init_int_regs[2] =
+                32'd4;
+
+            tr.expected_pc =
+                32'd4;
+
+            tr.exp_int_regs[1] =
+                32'h80000000;
+
+            tr.exp_int_regs[2] =
+                32'd4;
+
+            // Unsupported ALU operation -> default result
+            tr.exp_int_regs[3] =
+                32'd0;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SRL UNSUPPORTED: funct7[5]=0 -> ALU_op=1111",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
         // Test 8: SLT
         //
         //   SLT x3, x1, x2
@@ -936,6 +1008,114 @@ package cpu_exec_sequence_pkg;
 
 
         // ============================================================
+        // Test: Zero instruction
+        //
+        // Execute an all-zero instruction word.
+        //
+        // This intentionally exercises the FALSE outcome of:
+        //
+        //   if (instruction != 32'h00000000)
+        //
+        // Therefore the PC must remain at zero.
+        // ============================================================
+
+        task automatic test_zero_instruction();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_zero_instruction"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 1;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // Intentionally zero instruction.
+            tr.instr_mem[0] =
+                32'h00000000;
+
+            // PC must remain at zero because instruction == 0.
+            tr.expected_pc =
+                32'd0;
+
+            tr.exp_int_regs[0] =
+                32'h00000000;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST ZERO INSTRUCTION: instruction=0 -> PC remains 0",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
+        // Test: FP register initialization
+        //
+        // Exercises the register_file FP write path through the
+        // testbench register initialization interface.
+        //
+        // init_fp_regs[1] is driven by cpu_driver with:
+        //   reg_init_enable = 1
+        //   reg_init_is_fp  = 1
+        //
+        // This reaches:
+        //   register_file.sv:
+        //       if (is_fp)
+        //           fp_regs[write_addr] <= write_data;
+        // ============================================================
+
+        task automatic test_fp_reg_init();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_fp_reg_init");
+
+            start_item(tr);
+
+            tr.instr_count = 1;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // Keep CPU execution harmless.
+            tr.instr_mem[0] =
+                32'h00000013;   // ADDI x0,x0,0 (NOP)
+
+            // Initialize floating-point register f1/x? storage
+            // with a non-zero value so the driver performs the
+            // FP register initialization transaction.
+            tr.init_fp_regs[1] =
+                32'h3F800000;   // +1.0f
+
+            tr.expected_pc =
+                32'd4;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST FP REG INIT: fp_regs[1] initialized to 0x3F800000",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
         // Main sequence body
         // ============================================================
 
@@ -966,6 +1146,8 @@ package cpu_exec_sequence_pkg;
 
             test_sra();
 
+            test_srl_unsupported();
+
             test_slt();
 
             test_slt_false();
@@ -985,6 +1167,20 @@ package cpu_exec_sequence_pkg;
             // --------------------------------------------------------
 
             test_x0_write();
+
+
+            // --------------------------------------------------------
+            // PC logic condition coverage
+            // --------------------------------------------------------
+
+            test_zero_instruction();
+
+
+            // --------------------------------------------------------
+            // Floating-point register-file initialization path
+            // --------------------------------------------------------
+
+            test_fp_reg_init();
 
 
             `uvm_info(

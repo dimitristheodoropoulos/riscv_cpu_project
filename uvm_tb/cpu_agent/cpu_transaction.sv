@@ -15,6 +15,7 @@ package cpu_pkg;
     //   Input / stimulus:
     //     - instruction memory image
     //     - initial integer register state
+    //     - initial floating-point register state
     //     - instruction count
     //
     //   Expected architectural state:
@@ -48,6 +49,7 @@ package cpu_pkg;
         // --------------------------------------------------------
 
         bit [31:0] init_int_regs [0:31];
+        bit [31:0] init_fp_regs  [0:31];
 
         // --------------------------------------------------------
         // Expected architectural state
@@ -97,6 +99,9 @@ package cpu_pkg;
             // Initial registers
             foreach (init_int_regs[i])
                 init_int_regs[i] = 32'h00000000;
+
+            foreach (init_fp_regs[i])
+                init_fp_regs[i] = 32'h00000000;
 
             // Expected state
             foreach (exp_int_regs[i])
@@ -286,6 +291,9 @@ package cpu_pkg;
             foreach (init_int_regs[i])
                 init_int_regs[i] = rhs_tr.init_int_regs[i];
 
+            foreach (init_fp_regs[i])
+                init_fp_regs[i] = rhs_tr.init_fp_regs[i];
+
             // Expected state
             foreach (exp_int_regs[i])
                 exp_int_regs[i] = rhs_tr.exp_int_regs[i];
@@ -346,6 +354,11 @@ package cpu_pkg;
 
             foreach (init_int_regs[i]) begin
                 if (init_int_regs[i] != rhs_tr.init_int_regs[i])
+                    return 0;
+            end
+
+            foreach (init_fp_regs[i]) begin
+                if (init_fp_regs[i] != rhs_tr.init_fp_regs[i])
                     return 0;
             end
 

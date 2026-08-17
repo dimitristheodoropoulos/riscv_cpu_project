@@ -353,10 +353,15 @@ package cpu_model_pkg;
             regs[0] = 32'h00000000;
 
             // ----------------------------------------------------
-            // Single-cycle CPU: advance PC by 4.
+            // PC update
+            //
+            // Match RTL semantics:
+            // instruction == 0 is treated as an empty/invalid
+            // instruction and does not advance the PC.
             // ----------------------------------------------------
 
-            pc = pc + 32'd4;
+            if (instr != 32'h00000000)
+                pc = pc + 32'd4;
 
         endfunction
 
