@@ -26,7 +26,10 @@ is not exercised through the current CPU execution subset.
 
 These module-level results are complementary to:
 
-- `docs/cpu_exec_coverage_status.md`
+- `docs/cpu_exec_verification_plan.md`
+- `docs/cpu_exec_verification_summary.md`
+- `docs/cpu_exec_coverage_report.md`
+- `docs/cpu_exec_formal_verification.md`
 - `docs/fpu_branch_waivers.md`
 
 The CPU execution path remains scoped to the currently supported RV32I subset:
@@ -39,7 +42,7 @@ Explicitly unsupported and out-of-scope for the current CPU execution scope:
 
 - SRL
 - SLTU
-- FP register file access
+- FP arithmetic instruction execution
 - branch instructions
 - jump instructions
 - U-type instructions
