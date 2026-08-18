@@ -1,3 +1,6 @@
+`ifndef CPU_EXEC_UVM_WRAPPER_SV
+`define CPU_EXEC_UVM_WRAPPER_SV
+
 `timescale 1ns/1ps
 
 module cpu_exec_uvm_wrapper (
@@ -16,12 +19,22 @@ module cpu_exec_uvm_wrapper (
         .result           (cpu_if.result)
     );
 
+    // --------------------------------------------------------
+    // CPU Assertion-Based Verification
+    // --------------------------------------------------------
+
+    cpu_exec_assertions u_assertions (
+        .clk              (cpu_if.clk),
+        .reset            (cpu_if.reset),
+        .execution_enable (cpu_if.execution_enable),
+        .mem_read         (dut.mem_read),
+        .mem_write        (dut.mem_write),
+        .pc               (cpu_if.pc),
+        .x0               (dut.u_rf.int_regs[0])
+    );
 
     // --------------------------------------------------------
     // Instruction memory programming
-    //
-    // Sampled on positive clock edge.
-    // Driver presents program_enable before posedge.
     // --------------------------------------------------------
 
     always @(posedge cpu_if.clk) begin
@@ -55,7 +68,6 @@ module cpu_exec_uvm_wrapper (
 
     end
 
-
     // --------------------------------------------------------
     // Architectural state observation
     // --------------------------------------------------------
@@ -84,3 +96,5 @@ module cpu_exec_uvm_wrapper (
     end
 
 endmodule
+
+`endif

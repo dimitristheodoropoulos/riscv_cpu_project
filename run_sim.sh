@@ -80,6 +80,7 @@ cpu_exec)
         "$PROJECT_ROOT/rtl/mmu.sv" \
         "$PROJECT_ROOT/rtl/register_file.sv" \
         "$PROJECT_ROOT/rtl/cpu_exec_core.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_exec_assertions.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_exec_if.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_transaction.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_driver.sv" \
