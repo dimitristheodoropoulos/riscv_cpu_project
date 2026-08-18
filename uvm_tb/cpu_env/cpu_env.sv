@@ -10,28 +10,10 @@ package cpu_env_pkg;
 
     import cpu_agent_pkg::*;
     import cpu_scoreboard_pkg::*;
+    import cpu_coverage_pkg::*;    // added
 
     // ------------------------------------------------------------
     // CPU UVM Environment
-    //
-    // Contains:
-    //   - CPU agent
-    //   - CPU scoreboard
-    //
-    // Analysis connections:
-    //
-    //   driver.analysis_port
-    //          |
-    //          v
-    //   scoreboard.expected_export
-    //
-    //   monitor.analysis_port
-    //          |
-    //          v
-    //   scoreboard.observed_export
-    //
-    // The scoreboard uses the original stimulus transaction
-    // together with the observed architectural state.
     // ------------------------------------------------------------
 
     class cpu_env extends uvm_env;
@@ -42,8 +24,9 @@ package cpu_env_pkg;
         // Components
         // --------------------------------------------------------
 
-        cpu_agent      agent;
-        cpu_scoreboard scoreboard;
+        cpu_agent               agent;
+        cpu_scoreboard          scoreboard;
+        cpu_functional_coverage coverage_h;   // added
 
         // --------------------------------------------------------
         // Constructor
@@ -86,6 +69,16 @@ package cpu_env_pkg;
                     this
                 );
 
+            // ----------------------------------------------------
+            // Functional coverage
+            // ----------------------------------------------------
+
+            coverage_h =
+                cpu_functional_coverage::type_id::create(
+                    "coverage_h",
+                    this
+                );
+
         endfunction
 
         // --------------------------------------------------------
@@ -102,6 +95,14 @@ package cpu_env_pkg;
 
             agent.driver.analysis_port.connect(
                 scoreboard.expected_export
+            );
+
+            // ----------------------------------------------------
+            // Original stimulus -> functional coverage
+            // ----------------------------------------------------
+
+            agent.driver.analysis_port.connect(
+                coverage_h.analysis_export
             );
 
             // ----------------------------------------------------

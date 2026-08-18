@@ -88,6 +88,7 @@ cpu_exec)
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_agent.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_model/cpu_reference_model.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_scoreboard.sv" \
+        "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_functional_coverage.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_env/cpu_env.sv" \
         "$PROJECT_ROOT/uvm_tb/sequences/cpu_exec_sequence.sv" \
         "$PROJECT_ROOT/uvm_tb/tests/cpu_exec_test.sv" \

@@ -1119,6 +1119,122 @@ package cpu_exec_sequence_pkg;
         // Main sequence body
         // ============================================================
 
+        // ============================================================
+        // ALU signed overflow coverage
+        // ============================================================
+
+        // ------------------------------------------------------------
+        // Test: ADD signed overflow
+        //   ADD x3, x1, x2
+        //   0x7FFFFFFF + 1 = 0x80000000
+        // ------------------------------------------------------------
+
+        task automatic test_add_overflow();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_add_overflow"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 1;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            tr.instr_mem[0] =
+                32'h002081B3;   // ADD x3,x1,x2
+
+            tr.init_int_regs[1] =
+                32'h7FFFFFFF;
+
+            tr.init_int_regs[2] =
+                32'h00000001;
+
+            tr.expected_pc =
+                32'd4;
+
+            tr.exp_int_regs[1] =
+                32'h7FFFFFFF;
+
+            tr.exp_int_regs[2] =
+                32'h00000001;
+
+            tr.exp_int_regs[3] =
+                32'h80000000;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST ADD OVERFLOW: x1=0x7FFFFFFF + x2=1 -> x3=0x80000000",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ------------------------------------------------------------
+        // Test: SUB signed overflow
+        //   SUB x3, x1, x2
+        //   0x80000000 - 1 = 0x7FFFFFFF
+        // ------------------------------------------------------------
+
+        task automatic test_sub_overflow();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_sub_overflow"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 1;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            tr.instr_mem[0] =
+                32'h402081B3;   // SUB x3,x1,x2
+
+            tr.init_int_regs[1] =
+                32'h80000000;
+
+            tr.init_int_regs[2] =
+                32'h00000001;
+
+            tr.expected_pc =
+                32'd4;
+
+            tr.exp_int_regs[1] =
+                32'h80000000;
+
+            tr.exp_int_regs[2] =
+                32'h00000001;
+
+            tr.exp_int_regs[3] =
+                32'h7FFFFFFF;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SUB OVERFLOW: x1=0x80000000 - x2=1 -> x3=0x7FFFFFFF",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
         task body();
 
             `uvm_info(
@@ -1174,6 +1290,14 @@ package cpu_exec_sequence_pkg;
             // --------------------------------------------------------
 
             test_zero_instruction();
+
+            // --------------------------------------------------------
+            // ALU signed overflow expression coverage
+            // --------------------------------------------------------
+
+            test_add_overflow();
+
+            test_sub_overflow();
 
 
             // --------------------------------------------------------
