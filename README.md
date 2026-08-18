@@ -38,6 +38,7 @@ For the detailed verification strategy and current status, see:
 - `docs/cpu_exec_verification_plan.md`
 - `docs/cpu_exec_verification_summary.md`
 - `docs/cpu_exec_formal_verification.md`
+- `docs/CPU_VERIFICATION_SIGNOFF.md` (CPU execution core sign‑off)
 
 ---
 
@@ -88,7 +89,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | FPU | `rtl/fpu.sv`, `rtl/fpu_add.sv`, `rtl/fpu_sub.sv`, `rtl/fpu_mul.sv`, `rtl/fpu_div.sv` | Directed TB + Python reference/differential flow + UVM environment + coverage closure + formal | ✅ Branch/condition/statement reachable closure |
 | MMU | `rtl/mmu.sv` | Directed TB + CPU exec integration + coverage | ✅ Verified for current CPU execution scope |
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + coverage | ✅ Verified for defined register-file behavior |
-| CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ RTL coverage closure for analyzed DUT hierarchy |
+| CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ Closed for defined RV32I execution subset |
 
 The status labels intentionally distinguish between:
 
@@ -396,9 +397,9 @@ docs/fpu_branch_waivers.md
 
 The closure statement is:
 
-> **100% reachable RTL branch coverage**,  
-> **100% reachable RTL condition coverage**,  
-> **100% reachable RTL statement coverage**,  
+> **100% reachable RTL branch coverage**,
+> **100% reachable RTL condition coverage**,
+> **100% reachable RTL statement coverage**,
 > with justified unreachable outcomes waived.
 
 ---
@@ -451,6 +452,7 @@ The CPU Execution Core verification environment includes:
 * `uvm_tb/cpu_agent/cpu_driver.sv`
 * `uvm_tb/cpu_agent/cpu_monitor.sv`
 * `uvm_tb/cpu_agent/cpu_scoreboard.sv`
+* `uvm_tb/cpu_agent/cpu_functional_coverage.sv`   ← **functional coverage component**
 * `uvm_tb/cpu_model/cpu_reference_model.sv`
 * `uvm_tb/sequences/cpu_exec_sequence.sv`
 * `uvm_tb/tests/cpu_exec_test.sv`
@@ -491,11 +493,18 @@ The current directed CPU execution suite includes:
 | Unsupported R-type funct3 | ✅ Pass |
 | Zero-instruction PC behavior | ✅ Pass |
 | FP register initialization | ✅ Pass |
+| ADD signed overflow   | ✅ Pass |
+| SUB signed overflow   | ✅ Pass |
 
 Scoreboard summary:
 
 ```text
 Architectural verification PASSED
+
+Expected transactions : 15
+Observed transactions : 15
+Matches               : 15
+Mismatches            : 0
 
 UVM_ERROR = 0
 UVM_FATAL = 0
@@ -507,26 +516,42 @@ RTL coverage was collected using Questa Coverage (UCDB).
 
 Verified RTL blocks:
 
-| Block | Branch | Statement |
-|-------|--------|-----------|
-| `cpu_exec_core` | 100% | 100% |
-| `cu` | 100% | 100% |
-| `alu` | 100% | 100% |
-| `register_file` | 100% | 100% |
-| `mmu` | 100% | 100% |
+| Block        | Branch      | Condition   | Expression   | Statement   |
+| ------------ | ----------- | ----------- | ------------ | ----------- |
+| `cu`         | 16/16 100%  | –           | –            | 34/34 100%  |
+| `register_file` | 12/12 100% | 3/3 100%    | –            | 14/14 100%  |
+| `alu`        | 11/11 100%  | 1/1 100%    | **5/5 100%** | 14/14 100%  |
+| `mmu`        | 5/5 100%    | –           | 2/2 100%     | 9/9 100%    |
+| `cpu_exec_core` | 19/19 100% | 1/1 100%    | **6/7 85.71%** | 9/9 100%    |
+| **DUT total** | **63/63 100%** | **5/5 100%** | **13/14 92.86%** | **80/80 100%** |
 
-The achieved result is:
+The achieved reachable coverage (after justified waiver) is:
 
-- 100% reachable RTL branch coverage
-- 100% RTL statement coverage
-- Full coverage of all implemented RV32I execution paths
+- **Branch**: 63/63 = 100%
+- **Condition**: 5/5 = 100%
+- **Expression**: 13/14 = 92.86% raw, with one justified waiver
+- **Statement**: 80/80 = 100%
 
-Remaining toggle coverage gaps correspond to unused/unreachable
-instruction encoding fields outside the implemented CPU subset.
+**Waiver detail:**
+In `cpu_exec_core.sv`, the expression `(reg_init_enable ? reg_init_is_fp : is_fp)` has one uncovered input term:
+`reg_init_enable = 0, is_fp = 1`.
 
-This does **not** represent complete RV32I processor coverage.
+During normal instruction execution, `is_fp` is driven by the Control Unit and is always `0` for the supported RV32I instruction subset. The only way to set `is_fp=1` is through the testbench register‑initialization interface (`reg_init_enable=1, reg_init_is_fp=1`), which has been covered. Therefore the term is unreachable on the normal instruction path. This is a justified waiver; it does not affect functional correctness.
 
-Full RV32I processor verification remains outside the current scope.
+**Toggle coverage**: 814/1248 = 65.22% – treated as a non‑targeted metric rather than a closure criterion.
+
+## Functional Coverage
+
+Manual functional coverage is implemented in:
+
+```text
+uvm_tb/cpu_agent/cpu_functional_coverage.sv
+```
+
+The component receives original stimulus from the CPU driver and tracks
+operation types, operand classes, immediate classes, memory address
+classes, and relevant cross coverage. It is not used as a closure
+criterion but demonstrates a comprehensive coverage‑driven methodology.
 
 ---
 
@@ -677,6 +702,10 @@ Functional coverage is tracked at block level.
 Where native SystemVerilog covergroup functionality is unavailable under
 the selected free simulator license, explicit/manual bin accounting is
 used.
+
+For the CPU execution core, a dedicated manual coverage component
+(`cpu_functional_coverage.sv`) tracks operation types, operand classes,
+immediate classes, and memory address classes.
 
 ---
 
@@ -928,12 +957,12 @@ project-wide closure.
 | Register File verification     | ✅ Closed       | 12/12 branch coverage standalone            |
 | Register File assertions       | ✅ Implemented  | Independent invariant checking              |
 | CPU Execution Core verification| ✅ Closed       | Closed for defined RV32I execution subset   |
-| CPU Execution directed suite   | ✅ Passed       | Supported cases + architectural checks      |
+| CPU Execution directed suite   | ✅ Passed       | 15 tests, 15/15 matches                     |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
-| Code coverage closure          | 🟡 In progress  | Block-level reports require further analysis|
+| Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
-| CPU integration verification   | 🟢 Initial      | CPU exec core being verified                |
+| CPU integration verification   | 🟢 Initial      | CPU exec core verified; full integration remains |
 | Full-system verification       | ⚪ Not started  | Outside current scope                       |
 
 ---
@@ -1047,6 +1076,7 @@ riscv_cpu_project/
 │   │   ├── cpu_driver.sv
 │   │   ├── cpu_monitor.sv
 │   │   ├── cpu_scoreboard.sv
+│   │   ├── cpu_functional_coverage.sv
 │   │   └── cpu_agent.sv
 │   ├── cpu_model/
 │   │   └── cpu_reference_model.sv
@@ -1071,7 +1101,8 @@ riscv_cpu_project/
 │   ├── fpu_branch_waivers.md
 │   ├── cpu_exec_verification_plan.md
 │   ├── cpu_exec_verification_summary.md
-│   └── cpu_exec_formal_verification.md
+│   ├── cpu_exec_formal_verification.md
+│   └── CPU_VERIFICATION_SIGNOFF.md
 │
 ├── run_sim.sh
 ├── run_regression.sh
@@ -1132,9 +1163,9 @@ The current focus includes:
 * FPU reachable coverage closure ✅
 * MMU reset + integration ✅
 * Register File verification ✅
-* CPU Execution Core RTL coverage closure for analyzed DUT hierarchy ✅
+* CPU Execution Core RTL coverage closure ✅
 
-The next major phase is continued CPU integration verification.
+**The immediate verification focus is continued CPU integration verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
 
 The repository demonstrates the engineering discipline required to
 drive verification toward defensible closure while explicitly
