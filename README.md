@@ -136,6 +136,13 @@ relying on a single testbench.
 Different blocks use different combinations of these components according
 to their verification requirements.
 
+For CPU architectural checking, the project uses both an internal
+SystemVerilog reference model and an external ISA-level differential
+reference through Spike. The two layers serve different purposes:
+the internal reference model supports transaction-level scoreboard
+checking, while Spike provides an independent architectural execution
+reference.
+
 The overall methodology emphasizes independence between:
 
 * stimulus generation;
@@ -474,6 +481,45 @@ S-type: SW
 The scoreboard compares the architectural state predicted by the reference
 model with the observed DUT state.
 
+## DUT ↔ Spike Differential Verification
+
+An additional architectural differential-verification layer compares the
+CPU execution core against the Spike RISC-V ISA simulator.
+
+The current smoke scope covers the following RV32I R-type instructions:
+
+```text
+ADD
+SUB
+AND
+OR
+XOR
+SLL
+SLT
+```
+
+The DUT records architectural commit information as:
+
+```text
+PC + instruction + destination register + architectural result
+```
+
+The Python differential flow compares the DUT commit trace against the
+corresponding Spike execution trace.
+
+The current differential smoke regression reports:
+
+```text
+7 RV32I instruction commits
+DUT/Spike commit traces: matched
+Architectural mismatches: 0
+Python differential tests: 27 passed
+```
+
+The differential flow is intentionally scoped to the currently supported
+instruction subset. It is not a claim of full RV32I or full CPU-system
+verification.
+
 ## Directed Test Suite
 
 The current directed CPU execution suite includes:
@@ -685,12 +731,33 @@ uvm_tb/cpu_model/cpu_reference_model.sv
 
 ## Differential Verification
 
-Differential verification is currently used particularly for the FPU.
+Differential verification is used at multiple verification layers.
+
+For the FPU, an independent Python reference-model flow compares RTL
+arithmetic behavior across generated IEEE-754 binary32 vectors.
+
+For the CPU Execution Core, an external Spike ISA simulator is used as an
+architectural reference. The DUT produces an architectural commit trace
+containing PC, instruction, destination register, and result information.
+The Python differential flow compares the DUT trace against the Spike
+execution trace.
+
+The current CPU differential smoke scope covers seven RV32I R-type
+instructions and reports 27/27 Python tests passing with zero architectural
+mismatches.
 
 The main FPU differential testbench is:
 
 ```text
 tests/fpu_differential_tb.sv
+```
+
+The CPU differential infrastructure is:
+
+```text
+scripts/riscv_iss/
+tests/riscv_iss/
+tests/cpu_exec_spike_diff_smoke_tb.sv
 ```
 
 ---
@@ -959,6 +1026,7 @@ project-wide closure.
 | CPU Execution Core verification| ✅ Closed       | Closed for defined RV32I execution subset   |
 | CPU Execution directed suite   | ✅ Passed       | 15 tests, 15/15 matches                     |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
+| CPU DUT ↔ Spike differential   | ✅ Passed       | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
@@ -983,6 +1051,7 @@ Completed and near-term activities:
 * Register File verification ✅
 * MMU reset + CPU exec integration ✅
 * CPU Execution Core verification closure ✅
+* CPU DUT ↔ Spike differential verification ✅
 
 ## Phase 2 — Coverage and Assertion Closure
 
@@ -1012,14 +1081,16 @@ Planned capabilities:
 
 ## Phase 5 — CPU Integration
 
-Future CPU-level verification will include:
+Future CPU-level verification will extend the current DUT ↔ Spike
+architectural differential layer with:
 
+* broader instruction coverage
 * CPU-core integration testbench
-* Instruction-level reference model
-* End-to-end instruction checking
-* Memory model
-* Integration scoreboard
-* System-level functional coverage
+* end-to-end instruction checking
+* memory model
+* integration scoreboard
+* system-level functional coverage
+* broader architectural-state checking
 
 ---
 
@@ -1054,11 +1125,31 @@ riscv_cpu_project/
 │   ├── register_file_reference_model.sv
 │   ├── register_file_assertions.sv
 │   ├── register_file_coverage.sv
-│   └── reference/
-│       ├── generate_fpu_vectors.py
-│       ├── generate_fpu_differential_vectors.py
-│       ├── test_binary32.py
-│       └── test_fpu_reference_model.py
+│   ├── cpu_exec_spike_diff_smoke_tb.sv
+│   ├── reference/
+│   │   ├── generate_fpu_vectors.py
+│   │   ├── generate_fpu_differential_vectors.py
+│   │   ├── test_binary32.py
+│   │   └── test_fpu_reference_model.py
+│   └── riscv_iss/
+│       ├── rv32i_alu_smoke.S
+│       ├── rv32i_alu_smoke.ld
+│       ├── rv32i_alu_smoke.expected
+│       ├── test_differential_compare.py
+│       ├── test_differential_fault_injection.py
+│       ├── test_dut_commit_parser.py
+│       ├── test_dut_spike_integration.py
+│       ├── test_iss_contract.py
+│       └── test_spike_backend.py
+│
+├── scripts/
+│   └── riscv_iss/
+│       ├── differential_compare.py
+│       ├── dut_commit_parser.py
+│       ├── iss_contract.py
+│       ├── spike_backend.py
+│       ├── spike_commit_parser.py
+│       └── spike_runner.py
 │
 ├── reference/
 │   ├── binary32.py
@@ -1164,6 +1255,7 @@ The current focus includes:
 * MMU reset + integration ✅
 * Register File verification ✅
 * CPU Execution Core RTL coverage closure ✅
+* CPU DUT ↔ Spike differential verification ✅
 
 **The immediate verification focus is continued CPU integration verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
 
