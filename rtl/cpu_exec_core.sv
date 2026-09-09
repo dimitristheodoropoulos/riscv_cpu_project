@@ -9,6 +9,11 @@ module cpu_exec_core (
     // Testbench-only execution control
     input  logic        execution_enable,
 
+    // Synthesizable instruction-memory programming interface
+    input  logic        instr_mem_we,
+    input  logic [5:0]  instr_mem_waddr,
+    input  logic [31:0] instr_mem_wdata,
+
     // Testbench-only register initialization interface
     input  logic        reg_init_enable,
     input  logic [4:0]  reg_init_addr,
@@ -26,6 +31,13 @@ module cpu_exec_core (
 
     logic [31:0] instruction;
     logic [31:0] instr_mem [0:63];
+    logic [31:0] next_pc;
+
+
+    always_ff @(posedge clk) begin
+        if (instr_mem_we)
+            instr_mem[instr_mem_waddr] <= instr_mem_wdata;
+    end
 
 
     integer i;
@@ -49,7 +61,7 @@ module cpu_exec_core (
         else if (execution_enable) begin
 
             if (instruction != 32'h00000000)
-                pc <= pc + 32'd4;
+                pc <= next_pc;
 
         end
 
@@ -81,6 +93,7 @@ module cpu_exec_core (
     logic reg_write;
 
     logic [31:0] imm_ext;
+    logic        branch;
 
 
     cu u_cu (
@@ -100,7 +113,9 @@ module cpu_exec_core (
 
         .reg_write   (reg_write),
 
-        .imm_ext     (imm_ext)
+        .imm_ext     (imm_ext),
+
+        .branch      (branch)
 
     );
 
@@ -145,6 +160,54 @@ module cpu_exec_core (
 
 
     // --------------------------------------------------------
+    // Branch / next-PC control
+    //
+    // Supported conditional branches:
+    //   BEQ, BNE, BLT, BGE
+    //
+    // Taken branch target = PC + B-immediate.
+    // Not-taken path = PC + 4.
+    // --------------------------------------------------------
+
+    logic        branch_taken;
+
+    always_comb begin
+
+        branch_taken = 1'b0;
+
+        if (branch) begin
+
+            case (instruction[14:12])
+
+                3'b000:
+                    branch_taken = (reg1_data == reg2_data); // BEQ
+
+                3'b001:
+                    branch_taken = (reg1_data != reg2_data); // BNE
+
+                3'b100:
+                    branch_taken =
+                        ($signed(reg1_data) < $signed(reg2_data)); // BLT
+
+                3'b101:
+                    branch_taken =
+                        ($signed(reg1_data) >= $signed(reg2_data)); // BGE
+
+                default:
+                    branch_taken = 1'b0;
+
+            endcase
+
+        end
+
+    end
+
+    assign next_pc =
+        (branch && branch_taken)
+            ? pc + imm_ext
+            : pc + 32'd4;
+
+
     // ALU
     // --------------------------------------------------------
 

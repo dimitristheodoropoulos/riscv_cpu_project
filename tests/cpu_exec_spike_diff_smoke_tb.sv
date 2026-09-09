@@ -15,26 +15,21 @@ module cpu_exec_spike_diff_smoke_tb;
     // ------------------------------------------------------------
     // Test program
     //
-    // x1 = 10
+    // x1 = 0x80002000
     // x2 = 7
-    // x6 = 5
     //
-    // ADD x3, x1, x2 -> x3 = 17
-    // SUB x4, x3, x2 -> x4 = 10
-    // AND x5, x1, x2 -> x5 = 2
-    // OR  x7, x1, x2 -> x7 = 15
-    // XOR x8, x1, x2 -> x8 = 13
-    // SLL x9, x2, x6 -> x9 = 224
-    // SLT x10, x2, x1 -> x10 = 1
+    // ADD x3, x1, x2 -> x3 = 0x80002007
+    // BEQ x2, x2, +8 -> taken; skips PC 0x08
+    // ADD x20, x1, x2 -> skipped
+    // SW x2, 0(x1)
+    // LW x4, 0(x1) -> x4 = 7
     // ------------------------------------------------------------
 
     localparam logic [31:0] I0 = 32'h002081B3;
-    localparam logic [31:0] I1 = 32'h40218233;
-    localparam logic [31:0] I2 = 32'h0020F2B3;
-    localparam logic [31:0] I3 = 32'h0020E3B3;
-    localparam logic [31:0] I4 = 32'h0020C433;
-    localparam logic [31:0] I5 = 32'h006114B3;
-    localparam logic [31:0] I6 = 32'h00112533;
+    localparam logic [31:0] I1 = 32'h00210463;
+    localparam logic [31:0] I2 = 32'h00208A33;
+    localparam logic [31:0] I3 = 32'h0020A023;
+    localparam logic [31:0] I4 = 32'h0000A203;
 
     // ------------------------------------------------------------
     // Clock
@@ -100,6 +95,7 @@ module cpu_exec_spike_diff_smoke_tb;
     task automatic check_commit(
         input logic [31:0] expected_pc,
         input logic [31:0] expected_instruction,
+        input logic        expected_rd_valid,
         input logic [4:0]  expected_rd
     );
         begin
@@ -130,7 +126,8 @@ module cpu_exec_spike_diff_smoke_tb;
                 $fatal(1);
             end
 
-            if (cpu_if.commit_rd !== expected_rd) begin
+            if (expected_rd_valid &&
+                cpu_if.commit_rd !== expected_rd) begin
                 $display(
                     "FAIL: commit rd | Expected=%0d | Got=%0d",
                     expected_rd,
@@ -152,17 +149,28 @@ module cpu_exec_spike_diff_smoke_tb;
     task automatic write_commit_trace(
         input logic [31:0] pc,
         input logic [31:0] instruction,
+        input logic        rd_valid,
         input logic [4:0]  rd
     );
         begin
-            $fdisplay(
-                dut_trace_fd,
-                "DUT_COMMIT %08h %08h x%0d %08h",
-                pc,
-                instruction,
-                rd,
-                cpu_if.int_regs[rd]
-            );
+            if (rd_valid) begin
+                $fdisplay(
+                    dut_trace_fd,
+                    "DUT_COMMIT %08h %08h x%0d %08h",
+                    pc,
+                    instruction,
+                    rd,
+                    cpu_if.int_regs[rd]
+                );
+            end
+            else begin
+                $fdisplay(
+                    dut_trace_fd,
+                    "DUT_COMMIT %08h %08h",
+                    pc,
+                    instruction
+                );
+            end
         end
     endtask
 
@@ -231,17 +239,14 @@ module cpu_exec_spike_diff_smoke_tb;
         load_instruction(32'h00000008, I2);
         load_instruction(32'h0000000c, I3);
         load_instruction(32'h00000010, I4);
-        load_instruction(32'h00000014, I5);
-        load_instruction(32'h00000018, I6);
 
         // Release reset before architectural register initialization.
         @(negedge clk);
         cpu_if.reset = 1'b0;
 
         // Initial architectural state.
-        init_integer_register(1, 32'd10);
+        init_integer_register(1, 32'h80002000);
         init_integer_register(2, 32'd7);
-        init_integer_register(6, 32'd5);
 
         // Start execution.
         //
@@ -258,91 +263,107 @@ module cpu_exec_spike_diff_smoke_tb;
         // ADD x3, x1, x2
         // --------------------------------------------------------
 
-        check_commit(32'h00000000, I0, 5'd3);
+        check_commit(
+            32'h00000000,
+            I0,
+            1'b1,
+            5'd3
+        );
 
         @(posedge clk);
         #1;
 
-        check_register(3, 32'd17);
-        write_commit_trace(32'h00000000, I0, 5'd3);
+        check_register(3, 32'h80002007);
+        write_commit_trace(
+            32'h00000000,
+            I0,
+            1'b1,
+            5'd3
+        );
 
         // --------------------------------------------------------
-        // SUB x4, x3, x2
+        // BEQ x2, x2, +8 — taken
         // --------------------------------------------------------
 
         @(negedge clk);
-        check_commit(32'h00000004, I1, 5'd4);
+        check_commit(
+            32'h00000004,
+            I1,
+            1'b0,
+            5'd0
+        );
 
         @(posedge clk);
         #1;
 
-        check_register(4, 32'd10);
-        write_commit_trace(32'h00000004, I1, 5'd4);
+        if (cpu_if.pc !== 32'h0000000c) begin
+            $display(
+                "FAIL: taken BEQ target | Expected=0000000c | Got=%08h",
+                cpu_if.pc
+            );
+            $fatal(1);
+        end
+
+        write_commit_trace(
+            32'h00000004,
+            I1,
+            1'b0,
+            5'd0
+        );
 
         // --------------------------------------------------------
-        // AND x5, x1, x2
+        // PC 0x08 must be skipped by the taken branch.
         // --------------------------------------------------------
 
         @(negedge clk);
-        check_commit(32'h00000008, I2, 5'd5);
+
+        if (cpu_if.pc !== 32'h0000000c) begin
+            $display(
+                "FAIL: skipped instruction PC | Expected=0000000c | Got=%08h",
+                cpu_if.pc
+            );
+            $fatal(1);
+        end
+
+        check_commit(
+            32'h0000000c,
+            I3,
+            1'b0,
+            5'd0
+        );
 
         @(posedge clk);
         #1;
 
-        check_register(5, 32'd2);
-        write_commit_trace(32'h00000008, I2, 5'd5);
+        write_commit_trace(
+            32'h0000000c,
+            I3,
+            1'b0,
+            5'd0
+        );
 
         // --------------------------------------------------------
-        // OR x7, x1, x2
+        // LW x4, 0(x1)
         // --------------------------------------------------------
 
         @(negedge clk);
-        check_commit(32'h0000000c, I3, 5'd7);
+        check_commit(
+            32'h00000010,
+            I4,
+            1'b1,
+            5'd4
+        );
 
         @(posedge clk);
         #1;
 
-        check_register(7, 32'd15);
-        write_commit_trace(32'h0000000c, I3, 5'd7);
-
-        // --------------------------------------------------------
-        // XOR x8, x1, x2
-        // --------------------------------------------------------
-
-        @(negedge clk);
-        check_commit(32'h00000010, I4, 5'd8);
-
-        @(posedge clk);
-        #1;
-
-        check_register(8, 32'd13);
-        write_commit_trace(32'h00000010, I4, 5'd8);
-
-        // --------------------------------------------------------
-        // SLL x9, x2, x6
-        // --------------------------------------------------------
-
-        @(negedge clk);
-        check_commit(32'h00000014, I5, 5'd9);
-
-        @(posedge clk);
-        #1;
-
-        check_register(9, 32'd224);
-        write_commit_trace(32'h00000014, I5, 5'd9);
-
-        // --------------------------------------------------------
-        // SLT x10, x2, x1
-        // --------------------------------------------------------
-
-        @(negedge clk);
-        check_commit(32'h00000018, I6, 5'd10);
-
-        @(posedge clk);
-        #1;
-
-        check_register(10, 32'd1);
-        write_commit_trace(32'h00000018, I6, 5'd10);
+        check_register(4, 32'd7);
+        write_commit_trace(
+            32'h00000010,
+            I4,
+            1'b1,
+            5'd4
+        );
 
         $display("DUT_FINAL_PC %08h", cpu_if.pc);
 
@@ -353,16 +374,20 @@ module cpu_exec_spike_diff_smoke_tb;
         $fclose(dut_trace_fd);
 
         // Final architectural-state snapshot.
+        if (cpu_if.pc !== 32'h00000014) begin
+            $display(
+                "FAIL: final PC | Expected=00000014 | Got=%08h",
+                cpu_if.pc
+            );
+            $fatal(1);
+        end
+
         check_register(0, 32'd0);
-        check_register(1, 32'd10);
+        check_register(1, 32'h80002000);
         check_register(2, 32'd7);
-        check_register(3, 32'd17);
-        check_register(4, 32'd10);
-        check_register(5, 32'd2);
-        check_register(7, 32'd15);
-        check_register(8, 32'd13);
-        check_register(9, 32'd224);
-        check_register(10, 32'd1);
+        check_register(3, 32'h80002007);
+        check_register(4, 32'd7);
+        check_register(20, 32'd0);
 
         cpu_if.execution_enable = 1'b0;
 

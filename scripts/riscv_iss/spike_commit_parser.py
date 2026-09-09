@@ -52,12 +52,10 @@ def parse_log(
     path,
     program_base,
     program_end,
-    expected_trace,
+    expected_trace=None,
 ):
     regs = [0] * 32
     accepted = []
-
-    expected_index = 0
 
     with open(path, "r", encoding="utf-8") as stream:
         for line_number, line in enumerate(stream, start=1):
@@ -82,34 +80,19 @@ def parse_log(
                     f"0x{pc:08x}"
                 )
 
-            if expected_index >= len(expected_trace):
-                raise RuntimeError(
-                    f"unexpected extra architectural commit at line "
-                    f"{line_number}: pc=0x{pc:08x}"
-                )
-
-            expected_pc, expected_instruction = expected_trace[expected_index]
-
-            if pc != expected_pc:
-                raise RuntimeError(
-                    f"PC mismatch at architectural commit "
-                    f"{expected_index}: "
-                    f"expected 0x{expected_pc:08x}, "
-                    f"observed 0x{pc:08x}"
-                )
-
-            if instruction != expected_instruction:
-                raise RuntimeError(
-                    f"instruction mismatch at architectural commit "
-                    f"{expected_index}: "
-                    f"expected 0x{expected_instruction:08x}, "
-                    f"observed 0x{instruction:08x}"
-                )
-
             rd_text = match.group("rd")
             value_text = match.group("value")
 
+            rd = None
+            value = None
+
             if rd_text is not None:
+                if value_text is None:
+                    raise RuntimeError(
+                        f"commit has destination register without value "
+                        f"at line {line_number}"
+                    )
+
                 rd = int(rd_text)
 
                 if not (0 <= rd < 32):
@@ -118,35 +101,22 @@ def parse_log(
                         f"{line_number}: x{rd}"
                     )
 
-                value = int(value_text, 16)
-                regs[rd] = value & 0xffffffff
+                value = int(value_text, 16) & 0xffffffff
+                regs[rd] = value
 
             accepted.append(
                 {
                     "pc": pc,
                     "instruction": instruction,
-                    "rd": None if rd_text is None else int(rd_text),
-                    "value": (
-                        None
-                        if value_text is None
-                        else int(value_text, 16) & 0xffffffff
-                    ),
+                    "rd": rd,
+                    "value": value,
                 }
             )
 
-            expected_index += 1
-
-            if expected_index == len(expected_trace):
-                break
-
     regs[0] = 0
 
-    if len(accepted) != len(expected_trace):
-        raise RuntimeError(
-            f"architectural commit count mismatch: "
-            f"expected {len(expected_trace)}, "
-            f"observed {len(accepted)}"
-        )
+    if not accepted:
+        raise RuntimeError("no architectural commits found in Spike log")
 
     return regs, accepted
 

@@ -41,6 +41,20 @@ interface cpu_exec_if (
     logic [31:0] result;
 
     // --------------------------------------------------------
+    // Instruction-level architectural commit observation
+    //
+    // These signals describe one executed instruction.
+    // The wrapper derives them from existing DUT signals.
+    // --------------------------------------------------------
+
+    logic        commit_valid;
+    logic [31:0] commit_pc;
+    logic [31:0] commit_instruction;
+    logic [4:0]  commit_rd;
+    logic        commit_rd_we;
+    logic [31:0] commit_rd_value;
+
+    // --------------------------------------------------------
     // UVM execution synchronization
     //
     // Asserted by the driver after the complete CPU program

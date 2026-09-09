@@ -8,6 +8,7 @@ module cu_tb;
     wire [4:0]  rs1, rs2, rd;
     wire        is_fp;
     wire        mem_read, mem_write, reg_write;
+    wire        branch;
     wire [31:0] imm_ext;
 
     integer tests;
@@ -30,7 +31,8 @@ module cu_tb;
         .mem_read(mem_read),
         .mem_write(mem_write),
         .reg_write(reg_write),
-        .imm_ext(imm_ext)
+        .imm_ext(imm_ext),
+        .branch(branch)
     );
 
     // ------------------------------------------------------------
@@ -45,6 +47,7 @@ module cu_tb;
         input        expected_mem_write;
         input        expected_reg_write;
         input [31:0] expected_imm_ext;
+        input        expected_branch;
         input [255:0] test_name;
 
         begin
@@ -60,13 +63,14 @@ module cu_tb;
                 (mem_read  === expected_mem_read)  &&
                 (mem_write === expected_mem_write) &&
                 (reg_write === expected_reg_write) &&
-                (imm_ext   === expected_imm_ext)) begin
+                (imm_ext   === expected_imm_ext)   &&
+                (branch    === expected_branch)) begin
 
                 passed = passed + 1;
 
                 $display(
-                    "PASS: %s | instr=%h ALU_op=%b rs1=%0d rs2=%0d rd=%0d mr=%b mw=%b rw=%b imm=%h",
-                    test_name, instruction, ALU_op, rs1, rs2, rd, mem_read, mem_write, reg_write, imm_ext
+                    "PASS: %s | instr=%h ALU_op=%b rs1=%0d rs2=%0d rd=%0d mr=%b mw=%b rw=%b imm=%h branch=%b",
+                    test_name, instruction, ALU_op, rs1, rs2, rd, mem_read, mem_write, reg_write, imm_ext, branch
                 );
 
             end else begin
@@ -105,6 +109,7 @@ module cu_tb;
             4'b0010, 5'd2, 5'd3, 5'd1,
             1'b0, 1'b0, 1'b1,
             32'b0,
+            1'b0,
             "R-type ADD"
         );
 
@@ -116,6 +121,7 @@ module cu_tb;
             4'b0110, 5'd4, 5'd5, 5'd6,
             1'b0, 1'b0, 1'b1,
             32'b0,
+            1'b0,
             "R-type SUB"
         );
 
@@ -127,6 +133,7 @@ module cu_tb;
             4'b0000, 5'd7, 5'd8, 5'd9,
             1'b0, 1'b0, 1'b1,
             32'b0,
+            1'b0,
             "R-type AND"
         );
 
@@ -138,6 +145,7 @@ module cu_tb;
             4'b0001, 5'd10, 5'd11, 5'd12,
             1'b0, 1'b0, 1'b1,
             32'b0,
+            1'b0,
             "R-type OR"
         );
 
@@ -149,6 +157,7 @@ module cu_tb;
             4'b0111, 5'd13, 5'd14, 5'd15,
             1'b0, 1'b0, 1'b1,
             32'b0,
+            1'b0,
             "R-type SLT"
         );
 
@@ -160,6 +169,7 @@ module cu_tb;
             4'b0000, 5'd2, 5'd0, 5'd1,
             1'b1, 1'b0, 1'b1,
             32'd4,
+            1'b0,
             "Load (LW)"
         );
 
@@ -172,18 +182,29 @@ module cu_tb;
             4'b0000, 5'd2, 5'd3, 5'd0,
             1'b0, 1'b1, 1'b0,
             32'd8,
+            1'b0,
             "Store (SW)"
         );
 
         // --------------------------------------------------------
-        // Unsupported opcode -> all defaults (NOP)
+        // Conditional branch: BEQ, rs1=x2, rs2=x3, offset=+8
         // --------------------------------------------------------
-        instruction = {25'b0, 7'b1100011}; // branch opcode, not decoded
+        instruction = {
+            1'b0,          // imm[12]
+            6'b000000,     // imm[10:5]
+            5'd3,          // rs2
+            5'd2,          // rs1
+            3'b000,        // funct3 = BEQ
+            4'b0100,       // imm[4:1] = 4
+            1'b0,          // imm[11]
+            7'b1100011     // opcode
+        };
         check_result(
-            4'b0000, 5'd0, 5'd0, 5'd0,
+            4'b0000, 5'd2, 5'd3, 5'd0,
             1'b0, 1'b0, 1'b0,
-            32'b0,
-            "Unsupported opcode (NOP)"
+            32'd8,
+            1'b1,
+            "Branch BEQ (+8)"
         );
 
         // --------------------------------------------------------
@@ -195,7 +216,7 @@ module cu_tb;
         $display("R-type  (0110011): %0d hits", opcode_hits[7'b0110011]);
         $display("Load    (0000011): %0d hits", opcode_hits[7'b0000011]);
         $display("Store   (0100011): %0d hits", opcode_hits[7'b0100011]);
-        $display("Unsupported (other): %0d hits", opcode_hits[7'b1100011]);
+        $display("Branch   (1100011): %0d hits", opcode_hits[7'b1100011]);
 
         // --------------------------------------------------------
         // Summary

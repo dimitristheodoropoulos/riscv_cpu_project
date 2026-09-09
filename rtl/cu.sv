@@ -8,7 +8,8 @@ module cu (
     output reg        mem_read,
     output reg        mem_write,
     output reg        reg_write,
-    output reg [31:0] imm_ext        // sign-extended immediate (νέο - χρειάζεται immgen logic)
+    output reg [31:0] imm_ext,       // sign-extended immediate
+    output reg        branch
 );
 
     wire [6:0] opcode = instruction[6:0];
@@ -25,6 +26,7 @@ module cu (
         mem_write = 1'b0;
         reg_write = 1'b0;
         imm_ext   = 32'b0;
+        branch    = 1'b0;
 
         case (opcode)
             7'b0110011: begin  // R-type (ADD/SUB/SLL/SLT/SLTU/XOR/SRL/SRA/OR/AND)
@@ -76,8 +78,22 @@ endcase
                 mem_write = 1'b1;
             end
 
+              7'b1100011: begin  // Conditional branches
+                  rs1 = instruction[19:15];
+                  rs2 = instruction[24:20];
+                  imm_ext = {
+                      {19{instruction[31]}},
+                      instruction[31],
+                      instruction[7],
+                      instruction[30:25],
+                      instruction[11:8],
+                      1'b0
+                  };
+                  branch = 1'b1;
+              end
+
             default: begin
-                // NOP / unsupported opcode (branches, jumps, U-type κ.λπ. - future work)
+                // NOP / unsupported opcode (jumps, U-type κ.λπ. - future work)
             end
         endcase
     end

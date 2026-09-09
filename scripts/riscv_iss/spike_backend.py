@@ -122,12 +122,13 @@ class SpikeBackend(ISSBackend):
             instruction = request.program[index]
             opcode = instruction & 0x7F
 
-            # Patch 2A deliberately limits the external differential
-            # milestone to sequential integer ALU/ADDI instructions.
-            if opcode not in (0x13, 0x33):
+            # Differential smoke scope covers basic RV32I integer,
+            # branch, and load/store instructions.
+            if opcode not in (0x03, 0x13, 0x23, 0x33, 0x63):
                 raise ValueError(
-                    "Patch 2A Spike backend supports only "
-                    f"OP-IMM/OP instructions; program[{index}] "
+                    "Spike differential backend supports only "
+                    "basic RV32I integer/branch/load-store instructions; "
+                    f"program[{index}] "
                     f"has opcode 0x{opcode:02x}"
                 )
 
@@ -177,6 +178,11 @@ class SpikeBackend(ISSBackend):
 
         lines.extend(
             [
+                "",
+                ".section .data",
+                ".globl __riscv_diff_data",
+                "__riscv_diff_data:",
+                "    .word 0x00000000",
                 "",
                 "1:",
                 "    jal x0, 1b",
@@ -242,6 +248,13 @@ SECTIONS
     .text.program : ALIGN(4)
     {{
         *(.text.program)
+    }}
+
+    . = 0x80002000;
+
+    .data : ALIGN(4)
+    {{
+        *(.data)
     }}
 }}
 """,

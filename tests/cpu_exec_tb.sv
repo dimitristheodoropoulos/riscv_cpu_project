@@ -4,6 +4,7 @@ module cpu_exec_tb;
 
     logic clk;
     logic reset;
+    logic        execution_enable;
 
     logic [31:0] pc;
     logic [31:0] result;
@@ -12,10 +13,14 @@ module cpu_exec_tb;
     integer errors;
 
     cpu_exec_core dut (
-        .clk    (clk),
-        .reset  (reset),
-        .pc     (pc),
-        .result (result)
+        .clk              (clk),
+        .reset            (reset),
+        .execution_enable (execution_enable),
+        .instr_mem_we     (1'b0),
+        .instr_mem_waddr  (6'd0),
+        .instr_mem_wdata  (32'd0),
+        .pc               (pc),
+        .result           (result)
     );
 
     always #5 clk = ~clk;
@@ -112,6 +117,7 @@ module cpu_exec_tb;
 
         clk    = 1'b0;
         reset  = 1'b1;
+        execution_enable  = 1'b0;
         errors = 0;
 
         // ----------------------------------------------------
@@ -198,6 +204,8 @@ module cpu_exec_tb;
         dut.u_rf.int_regs[1]  = 32'd10;
         dut.u_rf.int_regs[2]  = 32'd20;
         dut.u_rf.int_regs[12] = 32'hFFFF_FFFB; // -5
+
+        execution_enable = 1'b1;
 
         // ----------------------------------------------------
         // Execute thirteen instructions.
