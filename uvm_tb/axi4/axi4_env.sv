@@ -9,6 +9,7 @@ package axi4_env_pkg;
     import axi4_pkg::*;
     import axi4_agent_pkg::*;
     import axi4_scoreboard_pkg::*;
+    import axi4_coverage_pkg::*;
 
     class axi4_env extends uvm_env;
 
@@ -16,6 +17,7 @@ package axi4_env_pkg;
 
         axi4_agent agent;
         axi4_scoreboard scoreboard;
+        axi4_coverage coverage;
 
         function new(
             string name = "axi4_env",
@@ -38,6 +40,11 @@ package axi4_env_pkg;
                 "scoreboard",
                 this
             );
+
+            coverage = axi4_coverage::type_id::create(
+                "coverage",
+                this
+            );
         endfunction
 
         function void connect_phase(
@@ -47,6 +54,10 @@ package axi4_env_pkg;
 
             agent.monitor.analysis_port.connect(
                 scoreboard.analysis_export
+            );
+
+            agent.monitor.analysis_port.connect(
+                coverage.analysis_export
             );
         endfunction
 
