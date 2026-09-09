@@ -166,6 +166,94 @@ package axi4_sequence_pkg;
                 32'h0000_0018
             );
 
+            // ========================================================
+            // 11. COVERAGE CLOSURE — ALL WRITE ID x WSTRB
+            // ========================================================
+            //
+            // 16 IDs x 4 WSTRB classes = 64 unique combinations.
+            //
+            // WSTRB classes:
+            //   0000 = NONE
+            //   1111 = FULL
+            //   0001 = BYTE
+            //   0110 = PARTIAL
+            //
+            // Address region is rotated deterministically so that the
+            // same loop also contributes to WRITE_ID x ADDRESS and
+            // WRITE_ADDRESS x WSTRB coverage.
+            //
+            for (int id = 0; id < 16; id++) begin
+
+                // NONE — LOW / MID / HIGH rotation
+                case (id % 3)
+                    0: send_write(id[3:0], 32'h0000_0008,
+                                  32'h1000_0000 | id, 4'b0000);
+                    1: send_write(id[3:0], 32'h0000_0048,
+                                  32'h1000_0000 | id, 4'b0000);
+                    2: send_write(id[3:0], 32'h0000_0208,
+                                  32'h1000_0000 | id, 4'b0000);
+                endcase
+
+                // FULL — complementary address-region rotation
+                case ((id + 1) % 3)
+                    0: send_write(id[3:0], 32'h0000_000C,
+                                  32'h2000_0000 | id, 4'b1111);
+                    1: send_write(id[3:0], 32'h0000_004C,
+                                  32'h2000_0000 | id, 4'b1111);
+                    2: send_write(id[3:0], 32'h0000_020C,
+                                  32'h2000_0000 | id, 4'b1111);
+                endcase
+
+                // BYTE — second rotation
+                case ((id + 2) % 3)
+                    0: send_write(id[3:0], 32'h0000_0010,
+                                  32'h3000_0000 | id, 4'b0001);
+                    1: send_write(id[3:0], 32'h0000_0050,
+                                  32'h3000_0000 | id, 4'b0001);
+                    2: send_write(id[3:0], 32'h0000_0210,
+                                  32'h3000_0000 | id, 4'b0001);
+                endcase
+
+                // PARTIAL — back to first rotation
+                case (id % 3)
+                    0: send_write(id[3:0], 32'h0000_0014,
+                                  32'h4000_0000 | id, 4'b0110);
+                    1: send_write(id[3:0], 32'h0000_0054,
+                                  32'h4000_0000 | id, 4'b0110);
+                    2: send_write(id[3:0], 32'h0000_0214,
+                                  32'h4000_0000 | id, 4'b0110);
+                endcase
+
+            end
+
+            // ========================================================
+            // 12. COVERAGE CLOSURE — ALL READ ID x ADDRESS REGIONS
+            // ========================================================
+            //
+            // 16 IDs x 3 address regions = 48 unique combinations.
+            //
+            for (int id = 0; id < 16; id++) begin
+
+                // LOW
+                send_read(
+                    id[3:0],
+                    32'h0000_0000 + (id * 4)
+                );
+
+                // MID
+                send_read(
+                    id[3:0],
+                    32'h0000_0060 + (id * 4)
+                );
+
+                // HIGH
+                send_read(
+                    id[3:0],
+                    32'h0000_0220 + (id * 4)
+                );
+
+            end
+
             `uvm_info(
                 "AXI4_SEQ",
                 "Directed AXI4 coverage sequence completed",
