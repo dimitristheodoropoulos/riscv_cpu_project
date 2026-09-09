@@ -464,6 +464,7 @@ The CPU Execution Core verification environment includes:
 * `uvm_tb/sequences/cpu_exec_sequence.sv`
 * `uvm_tb/tests/cpu_exec_test.sv`
 * `tests/cpu_exec_reg_init_smoke_tb.sv`
+* `tests/cpu_exec_gls_smoke_tb.sv`
 
 ## Reference Model
 
@@ -585,6 +586,68 @@ In `cpu_exec_core.sv`, the expression `(reg_init_enable ? reg_init_is_fp : is_fp
 During normal instruction execution, `is_fp` is driven by the Control Unit and is always `0` for the supported RV32I instruction subset. The only way to set `is_fp=1` is through the testbench register‑initialization interface (`reg_init_enable=1, reg_init_is_fp=1`), which has been covered. Therefore the term is unreachable on the normal instruction path. This is a justified waiver; it does not affect functional correctness.
 
 **Toggle coverage**: 814/1248 = 65.22% – treated as a non‑targeted metric rather than a closure criterion.
+
+## Gate-Level Simulation (GLS)
+
+The CPU Execution Core was synthesized with Yosys and simulated at the
+generic gate level using the generated netlist and Yosys simulation cells.
+
+The GLS flow is intentionally separated from the RTL verification environment
+and validates the synthesized implementation against architectural smoke
+vectors.
+
+The flow consists of:
+
+```text
+RTL
+ ↓
+Yosys synthesis
+ ↓
+Generic technology mapping
+ ↓
+Gate-level netlist
+ ↓
+Icarus Verilog + Yosys simcells
+ ↓
+Architectural GLS smoke test
+```
+
+The dedicated GLS testbench is:
+
+```text
+tests/cpu_exec_gls_smoke_tb.sv
+```
+
+The current GLS smoke scope covers:
+
+* ADD
+* SUB
+* AND
+* OR
+* XOR
+* SLL
+* SLT
+* SW effective-address generation
+* LW effective-address generation
+* PC progression
+
+Observed GLS results:
+
+```text
+Icarus GLS compilation        PASS
+Architectural GLS smoke      PASS
+Architectural mismatches      0
+Final PC                      0x00000024
+```
+
+The GLS test validates architectural outputs exposed by the synthesized
+execution core, primarily `result` and `PC`. Register-file and MMU internal
+state are not treated as portable gate-level hierarchical observability
+points; those behaviors remain covered by the RTL integration environment.
+
+This is an architectural gate-level smoke verification result. It is not a
+claim of post-layout timing/SDF sign-off, full-chip GLS, or complete
+GLS-to-Spike equivalence.
 
 ## Functional Coverage
 
@@ -1027,6 +1090,7 @@ project-wide closure.
 | CPU Execution directed suite   | ✅ Passed       | 15 tests, 15/15 matches                     |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
 | CPU DUT ↔ Spike differential   | ✅ Passed       | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
+| CPU Execution Core GLS         | ✅ Passed       | Yosys synthesis + generic gate-level architectural smoke |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
@@ -1052,6 +1116,7 @@ Completed and near-term activities:
 * MMU reset + CPU exec integration ✅
 * CPU Execution Core verification closure ✅
 * CPU DUT ↔ Spike differential verification ✅
+* CPU Execution Core synthesis + GLS architectural smoke ✅
 
 ## Phase 2 — Coverage and Assertion Closure
 
@@ -1116,6 +1181,7 @@ riscv_cpu_project/
 │   ├── cpu_tb.sv
 │   ├── cpu_exec_tb.sv
 │   ├── cpu_exec_reg_init_smoke_tb.sv
+│   ├── cpu_exec_gls_smoke_tb.sv
 │   ├── fpu_tb.sv
 │   ├── fpu_differential_tb.sv
 │   ├── mmu_tb.sv
@@ -1256,6 +1322,7 @@ The current focus includes:
 * Register File verification ✅
 * CPU Execution Core RTL coverage closure ✅
 * CPU DUT ↔ Spike differential verification ✅
+* CPU Execution Core synthesis + GLS architectural smoke ✅
 
 **The immediate verification focus is continued CPU integration verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
 
