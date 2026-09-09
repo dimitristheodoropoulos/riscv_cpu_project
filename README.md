@@ -54,6 +54,12 @@ The current primary verification scope covers:
 - MMU
 - Register File
 - CPU Execution Core (`cpu_exec_core`)
+- AXI4 single-beat slave interface
+
+The AXI4 verification scope covers a deliberately constrained
+single-beat AXI4 slave interface, including functional checking,
+protocol assertions, backpressure, handshake stress, and functional
+coverage closure.
 
 System-level CPU integration remains a future verification phase.
 
@@ -90,6 +96,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | MMU | `rtl/mmu.sv` | Directed TB + CPU exec integration + coverage | ✅ Verified for current CPU execution scope |
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + coverage | ✅ Verified for defined register-file behavior |
 | CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ Closed for defined RV32I execution subset |
+| AXI4 Slave | `rtl/axi4/axi4_slave.sv` | UVM + scoreboard + protocol SVA + directed stress + functional coverage | ✅ Closed within declared single-beat scope |
 
 The status labels intentionally distinguish between:
 
@@ -664,6 +671,169 @@ criterion but demonstrates a comprehensive coverage‑driven methodology.
 
 ---
 
+# AXI4 Verification
+
+The project includes a dedicated AXI4 verification environment for the
+RTL AXI4 slave:
+
+```text
+rtl/axi4/axi4_slave.sv
+uvm_tb/axi4/axi4_if.sv
+uvm_tb/axi4/axi4_transaction.sv
+uvm_tb/axi4/axi4_sequence.sv
+uvm_tb/axi4/axi4_driver.sv
+uvm_tb/axi4/axi4_monitor.sv
+uvm_tb/axi4/axi4_scoreboard.sv
+uvm_tb/axi4/axi4_coverage.sv
+uvm_tb/axi4/axi4_protocol_sva.sv
+uvm_tb/axi4/axi4_agent.sv
+uvm_tb/axi4/axi4_env.sv
+uvm_tb/axi4/axi4_test.sv
+```
+
+## Verification Scope
+
+The AXI4 environment verifies the declared single-beat slave behavior.
+
+The current scope includes:
+
+* write address/data/response handshakes;
+* read address/data handshakes;
+* transaction ID checking;
+* write strobe behavior;
+* response checking;
+* read data checking;
+* `RLAST` checking;
+* response-channel backpressure;
+* VALID stability while READY is deasserted;
+* address-channel backpressure;
+* handshake ordering;
+* protocol assertions;
+* scoreboard-based memory checking;
+* functional coverage.
+
+The current DUT and verification environment deliberately constrain
+transactions to single-beat transfers:
+
+```text
+AWLEN = 0
+ARLEN = 0
+WLAST = 1
+RLAST = 1
+```
+
+The environment does not claim complete AXI4 verification for arbitrary
+bursts, unrestricted outstanding transactions, or full channel
+concurrency.
+
+## UVM Verification
+
+The AXI4 UVM environment contains:
+
+* transaction object;
+* sequencer and directed stimulus;
+* driver;
+* monitor;
+* scoreboard;
+* functional coverage component;
+* protocol SVA;
+* environment and test.
+
+The scoreboard models a simple in-order 1 KiB memory and checks:
+
+* write data and `WSTRB`;
+* read data;
+* transaction IDs;
+* `BRESP`;
+* `RRESP`;
+* `RLAST`.
+
+## Protocol and Stress Verification
+
+Dedicated standalone testbenches provide checks independent of the main
+UVM regression:
+
+```text
+uvm_tb/axi4/axi4_directed_tb.sv
+uvm_tb/axi4/axi4_backpressure_tb.sv
+uvm_tb/axi4/axi4_handshake_stress_tb.sv
+```
+
+The directed smoke test verifies reset behavior, response IDs, response
+codes, read data, and `RLAST`.
+
+The backpressure test verifies that response payloads remain stable while
+the corresponding READY signal is low.
+
+The handshake stress test verifies:
+
+* W-channel VALID stability before handshake;
+* AW/W sequencing;
+* AW backpressure while a B response is pending;
+* stability of stalled AW payload;
+* AR backpressure while an R response is pending;
+* stability of stalled AR payload.
+
+All standalone AXI4 stress tests completed with zero simulation errors
+and zero warnings.
+
+## Functional Coverage Closure
+
+Because the available Questa Starter license does not provide executable
+SystemVerilog covergroup support, the AXI4 environment uses explicit
+executable counters and cross-coverage matrices.
+
+The functional coverage model contains:
+
+| Coverage Item         |    Bins |
+| --------------------- | ------: |
+| Operation             |       2 |
+| Read ID               |      16 |
+| Write ID              |      16 |
+| WSTRB class           |       4 |
+| BRESP class           |       2 |
+| RRESP class           |       2 |
+| Read address region   |       3 |
+| Write address region  |       3 |
+| Write address × WSTRB |      12 |
+| Write ID × WSTRB      |      64 |
+| Read ID × address     |      48 |
+| Write ID × address    |      48 |
+| **Total**             | **220** |
+
+Final closure:
+
+```text
+Theoretical functional coverage: 218/220 = 99.09%
+Reachable functional coverage:   218/218 = 100.00%
+Unreachable bins:                2
+```
+
+The two unreachable bins are the non-OKAY response classes:
+
+```text
+BRESP_OTHER
+RRESP_OTHER
+```
+
+The current AXI4 slave DUT always produces `OKAY` responses, so these bins
+are unreachable within the declared DUT behavior. They are therefore
+reported explicitly rather than artificially removed or forced.
+
+## AXI4 Verification Sign-Off
+
+The AXI4 verification milestone is considered closed for the declared
+scope:
+
+> **AXI4 single-beat slave verification closed within declared scope.**
+
+This closure does not claim full AXI4 compliance verification. In
+particular, unrestricted burst behavior, multiple outstanding
+transactions, arbitrary channel concurrency, and physical/interconnect
+integration remain outside the current scope.
+
+---
+
 # MMU Verification
 
 ## RTL
@@ -1091,6 +1261,8 @@ project-wide closure.
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
 | CPU DUT ↔ Spike differential   | ✅ Passed       | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
 | CPU Execution Core GLS         | ✅ Passed       | Yosys synthesis + generic gate-level architectural smoke |
+| AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
+| AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
@@ -1117,8 +1289,28 @@ Completed and near-term activities:
 * CPU Execution Core verification closure ✅
 * CPU DUT ↔ Spike differential verification ✅
 * CPU Execution Core synthesis + GLS architectural smoke ✅
+* AXI4 UVM verification environment + scoreboard ✅
+* AXI4 protocol SVA + backpressure verification ✅
+* AXI4 handshake stress verification ✅
+* AXI4 reachable functional coverage closure ✅
 
-## Phase 2 — Coverage and Assertion Closure
+## Phase 2 — Bus and Interconnect Verification
+
+Next verification activities:
+
+* Bus/interconnect architecture definition
+* Request routing and response routing
+* Address decoding and target selection
+* Arbitration and fairness
+* Backpressure propagation
+* ID/request association
+* Error response propagation
+* Bus functional coverage
+* Protocol assertions
+* Directed and constrained-random stress
+* Scoreboard/reference-model checking
+
+## Phase 3 — Coverage and Assertion Closure
 
 Planned activities:
 
@@ -1126,7 +1318,7 @@ Planned activities:
 * Consolidated code-coverage reports
 * Complete CPU integration coverage closure
 
-## Phase 3 — Formal Expansion
+## Phase 4 — Formal Expansion
 
 Potential future targets:
 
@@ -1135,7 +1327,7 @@ Potential future targets:
 * MMU formal properties
 * CPU exec core formal properties
 
-## Phase 4 — Regression and CI
+## Phase 5 — Regression and CI
 
 Planned capabilities:
 
@@ -1144,7 +1336,7 @@ Planned capabilities:
 * Automated coverage collection
 * CI regression integration
 
-## Phase 5 — CPU Integration
+## Phase 6 — CPU Integration
 
 Future CPU-level verification will extend the current DUT ↔ Spike
 architectural differential layer with:
@@ -1175,7 +1367,9 @@ riscv_cpu_project/
 │   ├── fpu_mul.sv
 │   ├── fpu_div.sv
 │   ├── mmu.sv
-│   └── register_file.sv
+│   ├── register_file.sv
+│   └── axi4/
+│       └── axi4_slave.sv
 │
 ├── tests/
 │   ├── cpu_tb.sv
@@ -1323,8 +1517,10 @@ The current focus includes:
 * CPU Execution Core RTL coverage closure ✅
 * CPU DUT ↔ Spike differential verification ✅
 * CPU Execution Core synthesis + GLS architectural smoke ✅
+* AXI4 single-beat slave verification closure ✅
+* AXI4 reachable functional coverage closure ✅
 
-**The immediate verification focus is continued CPU integration verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
+**The immediate verification focus is Bus/Interconnect verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
 
 The repository demonstrates the engineering discipline required to
 drive verification toward defensible closure while explicitly
