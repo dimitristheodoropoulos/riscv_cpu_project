@@ -55,11 +55,23 @@ The current primary verification scope covers:
 - Register File
 - CPU Execution Core (`cpu_exec_core`)
 - AXI4 single-beat slave interface
+- AXI4 Interconnect v1
 
-The AXI4 verification scope covers a deliberately constrained
+The AXI4 slave verification scope covers a deliberately constrained
 single-beat AXI4 slave interface, including functional checking,
 protocol assertions, backpressure, handshake stress, and functional
 coverage closure.
+
+The AXI4 Interconnect v1 verification scope covers a deliberately
+constrained interconnect with:
+
+- one master → two slaves
+- static address decoding
+- request routing and response routing
+- ID preservation
+- backpressure propagation
+- unmapped-address DECERR handling
+- single-beat transactions
 
 System-level CPU integration remains a future verification phase.
 
@@ -97,6 +109,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + coverage | ✅ Verified for defined register-file behavior |
 | CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ Closed for defined RV32I execution subset |
 | AXI4 Slave | `rtl/axi4/axi4_slave.sv` | UVM + scoreboard + protocol SVA + directed stress + functional coverage | ✅ Closed within declared single-beat scope |
+| AXI4 Interconnect v1 | `rtl/interconnect/axi4_interconnect.sv` | Integration smoke + bound SVA + real AXI4 slave targets | ✅ Verified within declared v1 scope |
 
 The status labels intentionally distinguish between:
 
@@ -834,6 +847,94 @@ integration remain outside the current scope.
 
 ---
 
+# AXI4 Interconnect Verification
+
+The project includes a dedicated AXI4 Interconnect v1 verification
+milestone:
+
+```text
+rtl/interconnect/axi4_interconnect.sv
+tests/axi4_interconnect_smoke_tb.sv
+uvm_tb/bus/axi4_interconnect_sva.sv
+```
+
+## Verification Scope
+
+The AXI4 Interconnect v1 verification scope is deliberately constrained:
+
+* one master → two slaves
+* static address decoding
+* request routing and response routing
+* ID preservation
+* backpressure propagation
+* unmapped-address DECERR handling
+* single-beat transactions
+
+The following are explicitly outside the current v1 scope:
+
+* arbitration and fairness across multiple masters
+* multi-master topologies
+* arbitrary outstanding-transaction support
+* burst transactions across the interconnect
+* advanced channel concurrency scenarios
+* cache-coherent interconnect behavior
+* NoC-style topologies
+
+## Integration Smoke Verification
+
+The integration smoke testbench connects the AXI4 Interconnect v1 to two
+real AXI4 slave instances and exercises the following scenarios:
+
+* S0 write followed by S0 read
+* S1 write followed by S1 read
+* S1 address translation
+* Target isolation between S0 and S1
+* Unmapped write → DECERR
+* Unmapped read → DECERR
+* Partial write with `WSTRB` routing to S0
+
+Observed integration smoke result:
+
+```text
+AXI4 INTERCONNECT SMOKE: PASS
+```
+
+## Protocol Assertions
+
+A dedicated bound SVA file provides interconnect-level protocol checks:
+
+```text
+uvm_tb/bus/axi4_interconnect_sva.sv
+```
+
+The bound assertions verify:
+
+* VALID stability while READY is low on all channels
+* AW/W sequencing before B response issuance
+* Correct response routing to the initiating master port
+* ID preservation across the interconnect
+* Single-beat assumptions
+  (`AWLEN = 0`, `ARLEN = 0`, `WLAST = 1`, `RLAST = 1`)
+
+These assertions are bound to the interconnect DUT instance and are
+intended to catch protocol violations during the integration smoke
+regression.
+
+## Verification Sign-Off
+
+The AXI4 Interconnect v1 verification checkpoint is considered closed
+within the declared scope:
+
+> **AXI4 Interconnect v1 integration and bound SVA smoke verification:
+> PASS.**
+
+This closure does not claim full interconnect verification. In particular,
+arbitration, fairness, multi-master support, burst transactions, and
+advanced channel concurrency remain outside the current v1 scope and are
+tracked as future extensions in the verification roadmap.
+
+---
+
 # MMU Verification
 
 ## RTL
@@ -1047,9 +1148,11 @@ Current examples include:
 
 ```text
 tests/register_file_assertions.sv
+uvm_tb/bus/axi4_interconnect_sva.sv
 ```
 
-as well as assertion support in the ALU/CU verification environment.
+as well as assertion support in the ALU/CU verification environment and
+the AXI4 protocol SVA.
 
 ---
 
@@ -1263,6 +1366,7 @@ project-wide closure.
 | CPU Execution Core GLS         | ✅ Passed       | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
+| AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID preservation, backpressure, unmapped DECERR, bound SVA |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
@@ -1296,19 +1400,27 @@ Completed and near-term activities:
 
 ## Phase 2 — Bus and Interconnect Verification
 
-Next verification activities:
+AXI4 Interconnect v1 checkpoint completed.
+
+Completed within the declared v1 scope:
 
 * Bus/interconnect architecture definition
 * Request routing and response routing
 * Address decoding and target selection
-* Arbitration and fairness
 * Backpressure propagation
 * ID/request association
 * Error response propagation
-* Bus functional coverage
 * Protocol assertions
-* Directed and constrained-random stress
-* Scoreboard/reference-model checking
+* Directed integration stress
+* Integration smoke checking
+
+Future extensions:
+
+* Arbitration and fairness
+* Multi-master support
+* Broader constrained-random interconnect stress
+* Expanded bus functional coverage
+* More complex outstanding-transaction/concurrency scenarios
 
 ## Phase 3 — Coverage and Assertion Closure
 
@@ -1368,8 +1480,10 @@ riscv_cpu_project/
 │   ├── fpu_div.sv
 │   ├── mmu.sv
 │   ├── register_file.sv
-│   └── axi4/
-│       └── axi4_slave.sv
+│   ├── axi4/
+│   │   └── axi4_slave.sv
+│   └── interconnect/
+│       └── axi4_interconnect.sv
 │
 ├── tests/
 │   ├── cpu_tb.sv
@@ -1386,6 +1500,7 @@ riscv_cpu_project/
 │   ├── register_file_assertions.sv
 │   ├── register_file_coverage.sv
 │   ├── cpu_exec_spike_diff_smoke_tb.sv
+│   ├── axi4_interconnect_smoke_tb.sv
 │   ├── reference/
 │   │   ├── generate_fpu_vectors.py
 │   │   ├── generate_fpu_differential_vectors.py
@@ -1435,6 +1550,8 @@ riscv_cpu_project/
 │   ├── sequences/
 │   │   └── cpu_exec_sequence.sv
 │   ├── tb_top_cpu_exec.sv
+│   ├── bus/
+│   │   └── axi4_interconnect_sva.sv
 │   └── tests/
 │       └── cpu_exec_test.sv
 │
@@ -1519,8 +1636,14 @@ The current focus includes:
 * CPU Execution Core synthesis + GLS architectural smoke ✅
 * AXI4 single-beat slave verification closure ✅
 * AXI4 reachable functional coverage closure ✅
+* AXI4 Interconnect v1 verification checkpoint ✅
 
-**The immediate verification focus is Bus/Interconnect verification, while consolidated project-wide coverage reporting and CI regression remain in progress.**
+The AXI4 Interconnect v1 verification checkpoint is complete.
+
+The immediate project focus is now interview preparation and consolidation
+of the verification evidence. Broader project-wide coverage reporting,
+CI regression, and future system-level integration remain outside the
+current closure scope.
 
 The repository demonstrates the engineering discipline required to
 drive verification toward defensible closure while explicitly
