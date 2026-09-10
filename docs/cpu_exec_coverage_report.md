@@ -68,8 +68,9 @@ RTL coverage was collected using Questa coverage analysis.
 | Metric | Result |
 |---|---:|
 | Branch Coverage | **63/63 = 100%** |
-| Condition Coverage | **100% reported bins** |
-| Statement Coverage | **100% reported RTL instances** |
+| Condition Coverage | **5/5 = 100%** |
+| Expression Coverage | **13/14 = 92.86% raw; one justified waiver** |
+| Statement Coverage | **80/80 = 100%** |
 
 Branch and statement coverage per RTL instance:
 
@@ -81,9 +82,11 @@ Branch and statement coverage per RTL instance:
 | `alu` | 100% | 100% |
 | `mmu` | 100% | 100% |
 
-The achieved closure is therefore:
+The achieved reachable closure is therefore:
 
-- 100% reachable RTL branch coverage
+- 100% RTL branch coverage
+- 100% RTL condition coverage
+- 100% reachable expression coverage after one justified waiver
 - 100% RTL statement coverage
 - Full coverage of all implemented RV32I execution paths
 
@@ -151,8 +154,9 @@ The CPU execution core RTL coverage analysis has achieved closure for the
 analyzed DUT hierarchy:
 
 - Branch coverage: **63/63 (100%)**
-- Condition coverage: **100% reported bins**
-- Statement coverage: **100% reported RTL instances**
+- Condition coverage: **5/5 (100%)**
+- Expression coverage: **13/14 (92.86%) raw; one justified waiver**
+- Statement coverage: **80/80 (100%)**
 
 The remaining toggle coverage gaps are explained by unsupported/unreachable
 instruction fields and are documented in Section 5.

@@ -255,8 +255,9 @@ The current RTL coverage result is:
 | Metric | Result |
 |---|---:|
 | RTL Branch Coverage | **63/63 = 100%** |
-| RTL Condition Coverage | **100% of reported bins** |
-| RTL Statement Coverage | **100% of reported RTL instances** |
+| RTL Condition Coverage | **5/5 = 100%** |
+| RTL Expression Coverage | **13/14 = 92.86% raw; one justified waiver** |
+| RTL Statement Coverage | **80/80 = 100%** |
 
 Branch coverage by RTL instance:
 
