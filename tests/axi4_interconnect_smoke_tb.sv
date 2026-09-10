@@ -9,6 +9,10 @@ module axi4_interconnect_smoke_tb;
     localparam logic [1:0] RESP_OKAY   = 2'b00;
     localparam logic [1:0] RESP_DECERR = 2'b11;
 
+    localparam logic [1:0] TARGET_NONE = 2'b00;
+    localparam logic [1:0] TARGET_S0   = 2'b01;
+    localparam logic [1:0] TARGET_S1   = 2'b10;
+
     logic clk;
     logic reset;
 
@@ -352,7 +356,9 @@ module axi4_interconnect_smoke_tb;
         input logic [ADDR_WIDTH-1:0] addr,
         input logic [DATA_WIDTH-1:0] data,
         input logic [DATA_WIDTH/8-1:0] strb,
-        input logic expected_error
+        input logic expected_error,
+        input logic [1:0] expected_target,
+        input logic [ADDR_WIDTH-1:0] expected_local_addr
     );
         begin
             // -----------------------------------------------------
@@ -365,11 +371,56 @@ module axi4_interconnect_smoke_tb;
             m_axi_awlen   = 8'd0;
             m_axi_awvalid = 1'b1;
 
+            // -----------------------------------------------------
+            // Verify address decode and local-address translation
+            // before the AW handshake changes the interconnect state.
+            // -----------------------------------------------------
+            #1;
+
+            case (expected_target)
+                TARGET_S0: begin
+                    if (s0_axi_awvalid !== 1'b1 ||
+                        s1_axi_awvalid !== 1'b0 ||
+                        s0_axi_awaddr !== expected_local_addr) begin
+                        $display("[ERROR] WRITE S0 routing mismatch: addr=%08h local=%08h s0_valid=%0b s0_addr=%08h s1_valid=%0b",
+                                 addr, expected_local_addr,
+                                 s0_axi_awvalid, s0_axi_awaddr, s1_axi_awvalid);
+                        errors = errors + 1;
+                    end
+                end
+                TARGET_S1: begin
+                    if (s0_axi_awvalid !== 1'b0 ||
+                        s1_axi_awvalid !== 1'b1 ||
+                        s1_axi_awaddr !== expected_local_addr) begin
+                        $display("[ERROR] WRITE S1 routing mismatch: addr=%08h local=%08h s0_valid=%0b s1_valid=%0b s1_addr=%08h",
+                                 addr, expected_local_addr,
+                                 s0_axi_awvalid, s1_axi_awvalid, s1_axi_awaddr);
+                        errors = errors + 1;
+                    end
+                end
+                TARGET_NONE: begin
+                    if (s0_axi_awvalid !== 1'b0 ||
+                        s1_axi_awvalid !== 1'b0) begin
+                        $display("[ERROR] WRITE unmapped address was routed: addr=%08h s0_valid=%0b s1_valid=%0b",
+                                 addr, s0_axi_awvalid, s1_axi_awvalid);
+                        errors = errors + 1;
+                    end
+                end
+                default: begin
+                    $display("[ERROR] WRITE invalid expected target: %0b", expected_target);
+                    errors = errors + 1;
+                end
+            endcase
+
+            // -----------------------------------------------------
+            // Complete the actual AW handshake.
+            // -----------------------------------------------------
             while (!m_axi_awready)
                 @(negedge clk);
 
             @(posedge clk);
               #1;
+
             m_axi_awvalid = 1'b0;
 
             // -----------------------------------------------------
@@ -431,7 +482,9 @@ module axi4_interconnect_smoke_tb;
         input logic [ID_WIDTH-1:0] id,
         input logic [ADDR_WIDTH-1:0] addr,
         input logic [DATA_WIDTH-1:0] expected_data,
-        input logic expected_error
+        input logic expected_error,
+        input logic [1:0] expected_target,
+        input logic [ADDR_WIDTH-1:0] expected_local_addr
     );
         begin
             // -----------------------------------------------------
@@ -444,11 +497,56 @@ module axi4_interconnect_smoke_tb;
             m_axi_arlen   = 8'd0;
             m_axi_arvalid = 1'b1;
 
+            // -----------------------------------------------------
+            // Verify address decode and local-address translation
+            // before the AR handshake changes the interconnect state.
+            // -----------------------------------------------------
+            #1;
+
+            case (expected_target)
+                TARGET_S0: begin
+                    if (s0_axi_arvalid !== 1'b1 ||
+                        s1_axi_arvalid !== 1'b0 ||
+                        s0_axi_araddr !== expected_local_addr) begin
+                        $display("[ERROR] READ S0 routing mismatch: addr=%08h local=%08h s0_valid=%0b s0_addr=%08h s1_valid=%0b",
+                                 addr, expected_local_addr,
+                                 s0_axi_arvalid, s0_axi_araddr, s1_axi_arvalid);
+                        errors = errors + 1;
+                    end
+                end
+                TARGET_S1: begin
+                    if (s0_axi_arvalid !== 1'b0 ||
+                        s1_axi_arvalid !== 1'b1 ||
+                        s1_axi_araddr !== expected_local_addr) begin
+                        $display("[ERROR] READ S1 routing mismatch: addr=%08h local=%08h s0_valid=%0b s1_valid=%0b s1_addr=%08h",
+                                 addr, expected_local_addr,
+                                 s0_axi_arvalid, s1_axi_arvalid, s1_axi_araddr);
+                        errors = errors + 1;
+                    end
+                end
+                TARGET_NONE: begin
+                    if (s0_axi_arvalid !== 1'b0 ||
+                        s1_axi_arvalid !== 1'b0) begin
+                        $display("[ERROR] READ unmapped address was routed: addr=%08h s0_valid=%0b s1_valid=%0b",
+                                 addr, s0_axi_arvalid, s1_axi_arvalid);
+                        errors = errors + 1;
+                    end
+                end
+                default: begin
+                    $display("[ERROR] READ invalid expected target: %0b", expected_target);
+                    errors = errors + 1;
+                end
+            endcase
+
+            // -----------------------------------------------------
+            // Complete the actual AR handshake.
+            // -----------------------------------------------------
             while (!m_axi_arready)
                 @(negedge clk);
 
             @(posedge clk);
               #1;
+
             m_axi_arvalid = 1'b0;
 
             // -----------------------------------------------------
@@ -524,14 +622,18 @@ module axi4_interconnect_smoke_tb;
             32'h0000_0020,
             32'hA5A5_1234,
             4'b1111,
-            1'b0
+            1'b0,
+            TARGET_S0,
+            32'h0000_0020
         );
 
         axi_read(
             4'h4,
             32'h0000_0020,
             32'hA5A5_1234,
-            1'b0
+            1'b0,
+            TARGET_S0,
+            32'h0000_0020
         );
 
         // -----------------------------------------------------
@@ -545,14 +647,18 @@ module axi4_interconnect_smoke_tb;
             32'h0000_0420,
             32'h5A5A_5678,
             4'b1111,
-            1'b0
+            1'b0,
+            TARGET_S1,
+            32'h0000_0020
         );
 
         axi_read(
             4'h8,
             32'h0000_0420,
             32'h5A5A_5678,
-            1'b0
+            1'b0,
+            TARGET_S1,
+            32'h0000_0020
         );
 
         // -----------------------------------------------------
@@ -565,14 +671,18 @@ module axi4_interconnect_smoke_tb;
             4'h9,
             32'h0000_0020,
             32'hA5A5_1234,
-            1'b0
+            1'b0,
+            TARGET_S0,
+            32'h0000_0020
         );
 
         axi_read(
             4'hA,
             32'h0000_0420,
             32'h5A5A_5678,
-            1'b0
+            1'b0,
+            TARGET_S1,
+            32'h0000_0020
         );
 
         // -----------------------------------------------------
@@ -583,10 +693,12 @@ module axi4_interconnect_smoke_tb;
 
         axi_write(
             4'hB,
-            32'h0000_1000,
+            32'h0000_0800,
             32'hDEAD_BEEF,
             4'b1111,
-            1'b1
+            1'b1,
+            TARGET_NONE,
+            32'h0000_0000
         );
 
         // -----------------------------------------------------
@@ -597,9 +709,11 @@ module axi4_interconnect_smoke_tb;
 
         axi_read(
             4'hC,
-            32'h0000_1000,
+            32'h0000_0800,
             32'h0000_0000,
-            1'b1
+            1'b1,
+            TARGET_NONE,
+            32'h0000_0000
         );
 
         // -----------------------------------------------------
@@ -613,7 +727,95 @@ module axi4_interconnect_smoke_tb;
             32'h0000_0024,
             32'h1122_3344,
             4'b0011,
-            1'b0
+            1'b0,
+            TARGET_S0,
+            32'h0000_0024
+        );
+
+        // -----------------------------------------------------
+        // 7. Address-map boundary coverage
+        // -----------------------------------------------------
+
+        $display("[TEST] Address-map boundaries");
+
+        // S0 lower boundary: 0x0000_0000 -> S0 local 0x0000_0000
+        axi_write(
+            4'h1,
+            32'h0000_0000,
+            32'h1111_0000,
+            4'b1111,
+            1'b0,
+            TARGET_S0,
+            32'h0000_0000
+        );
+
+        axi_read(
+            4'h2,
+            32'h0000_0000,
+            32'h1111_0000,
+            1'b0,
+            TARGET_S0,
+            32'h0000_0000
+        );
+
+        // S0 upper boundary: 0x0000_03FF -> S0 local 0x0000_03FF
+        axi_write(
+            4'h5,
+            32'h0000_03FF,
+            32'h2222_0000,
+            4'b1111,
+            1'b0,
+            TARGET_S0,
+            32'h0000_03FF
+        );
+
+        axi_read(
+            4'h6,
+            32'h0000_03FF,
+            32'h2222_0000,
+            1'b0,
+            TARGET_S0,
+            32'h0000_03FF
+        );
+
+        // S1 lower boundary: 0x0000_0400 -> S1 local 0x0000_0000
+        axi_write(
+            4'hE,
+            32'h0000_0400,
+            32'h3333_0000,
+            4'b1111,
+            1'b0,
+            TARGET_S1,
+            32'h0000_0000
+        );
+
+        axi_read(
+            4'hF,
+            32'h0000_0400,
+            32'h3333_0000,
+            1'b0,
+            TARGET_S1,
+            32'h0000_0000
+        );
+
+        // S1 upper boundary: 0x0000_07FF -> S1 local 0x0000_03FF
+        axi_write(
+            4'h0,
+            32'h0000_07FF,
+            32'h4444_0000,
+            4'b1111,
+            1'b0,
+            TARGET_S1,
+            32'h0000_03FF
+        );
+
+        axi_read(
+            4'h0,
+            32'h0000_07FF,
+            32'h4444_0000,
+            1'b0,
+            TARGET_S1,
+            32'h0000_03FF
         );
 
         // -----------------------------------------------------
