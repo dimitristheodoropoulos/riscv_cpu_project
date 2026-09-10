@@ -865,8 +865,8 @@ The AXI4 Interconnect v1 verification scope is deliberately constrained:
 * one master → two slaves
 * static address decoding
 * request routing and response routing
-* ID preservation
-* backpressure propagation
+* request/response ID association within the single-outstanding scope
+* protocol stability under READY backpressure
 * unmapped-address DECERR handling
 * single-beat transactions
 
@@ -892,6 +892,8 @@ real AXI4 slave instances and exercises the following scenarios:
 * Unmapped write → DECERR
 * Unmapped read → DECERR
 * Partial write with `WSTRB` routing to S0
+* S0 lower and upper address-map boundaries
+* S1 lower and upper address-map boundaries
 
 Observed integration smoke result:
 
@@ -909,16 +911,17 @@ uvm_tb/bus/axi4_interconnect_sva.sv
 
 The bound assertions verify:
 
-* VALID stability while READY is low on all channels
-* AW/W sequencing before B response issuance
-* Correct response routing to the initiating master port
-* ID preservation across the interconnect
-* Single-beat assumptions
-  (`AWLEN = 0`, `ARLEN = 0`, `WLAST = 1`, `RLAST = 1`)
+* single-beat write-address and read-address constraints
+  (`AWLEN = 0`, `ARLEN = 0`)
+* `WLAST = 1` on accepted write-data transfers
+* exclusive S0/S1 write targeting
+* exclusive S0/S1 read targeting
+* AW, W, and AR stability while VALID is asserted and READY is low
+* B and R response stability while VALID is asserted and READY is low
 
 These assertions are bound to the interconnect DUT instance and are
 intended to catch protocol violations during the integration smoke
-regression.
+verification.
 
 ## Verification Sign-Off
 
@@ -1366,7 +1369,7 @@ project-wide closure.
 | CPU Execution Core GLS         | ✅ Passed       | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
-| AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID preservation, backpressure, unmapped DECERR, bound SVA |
+| AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID/request association, boundary and unmapped-address checks, protocol-stability SVA |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
 | Unified CI regression          | 🟡 In progress  | Local regression exists                     |
@@ -1407,8 +1410,8 @@ Completed within the declared v1 scope:
 * Bus/interconnect architecture definition
 * Request routing and response routing
 * Address decoding and target selection
-* Backpressure propagation
-* ID/request association
+* Protocol stability under READY backpressure
+* ID/request association within the single-outstanding scope
 * Error response propagation
 * Protocol assertions
 * Directed integration stress
