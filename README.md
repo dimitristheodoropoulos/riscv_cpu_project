@@ -682,13 +682,16 @@ The current GLS smoke scope covers:
 * LW effective-address generation
 * PC progression
 
-Observed GLS results:
+Observed GLS results from the executed checkpoint:
 
 ```text
+Yosys synthesis               PASS
+Generic-cell netlist          GENERATED
 Icarus GLS compilation        PASS
 Architectural GLS smoke      PASS
 Architectural mismatches      0
 Final PC                      0x00000024
+VVP return code               0
 
 ```
 
