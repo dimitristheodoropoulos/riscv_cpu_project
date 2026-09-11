@@ -44,10 +44,20 @@ NoC v1 shall use single-flit packets.
 
 Each packet shall contain, at minimum:
 
-- source endpoint ID
-- destination endpoint ID
-- transaction ID
-- payload
+- source endpoint ID (3 bits)
+- destination endpoint ID (3 bits)
+- transaction ID (4 bits)
+- payload (32 bits)
+
+Endpoint ID encoding shall be:
+
+    3'b000 -> EP0
+    3'b001 -> EP1
+    3'b010 -> EP2
+    3'b011 -> EP3
+    3'b100-3'b111 -> invalid
+
+The logical packet width is therefore 42 bits.
 
 A single accepted valid/ready transfer represents one complete packet
 transaction. Multi-flit packets, packet fragmentation, virtual channels,
@@ -101,7 +111,8 @@ No global ordering requirement shall be imposed between independent flows.
 
 ### Invalid Destination Contract
 
-A destination ID outside EP0..EP3 shall be treated as an invalid destination.
+A destination ID encoded as 3'b100 through 3'b111 shall be treated as
+an invalid destination.
 
 The DUT shall reject such a packet, shall not deliver it to any endpoint,
 and shall expose an explicit error indication through the NoC interface.

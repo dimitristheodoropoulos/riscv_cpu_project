@@ -54,10 +54,20 @@ Endpoint mapping:
 
 NoC v1 uses single-flit packets containing:
 
-- source endpoint ID
-- destination endpoint ID
-- transaction ID
-- payload
+- source endpoint ID (3 bits)
+- destination endpoint ID (3 bits)
+- transaction ID (4 bits)
+- payload (32 bits)
+
+Endpoint ID encoding is:
+
+    3'b000 -> EP0
+    3'b001 -> EP1
+    3'b010 -> EP2
+    3'b011 -> EP3
+    3'b100-3'b111 -> invalid
+
+The logical packet width is 42 bits.
 
 Each accepted valid/ready transfer represents one complete packet.
 
@@ -98,7 +108,7 @@ flows.
 
 ### Invalid Destination
 
-Destination IDs outside EP0..EP3 are invalid.
+Destination IDs encoded as 3'b100 through 3'b111 are invalid.
 
 Invalid destinations shall be rejected, shall not be delivered to any
 endpoint, and shall produce an explicit error indication through the NoC
