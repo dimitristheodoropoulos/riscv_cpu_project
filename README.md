@@ -1558,6 +1558,7 @@ project-wide closure.
 | CPU DUT ↔ Spike differential | ✅ Passed | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
 | CPU Execution Core GLS | ✅ Passed | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
+| AXI4 Master v1 verification | ✅ Passed | Directed standalone + end-to-end Master → Interconnect → real AXI4 slaves within declared single-beat scope |
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
 | AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID/request association, boundary and unmapped-address checks, protocol-stability SVA |
 | Cache V2 directed verification | ✅ Passed | 48 PASS records, 0 FAIL records, WSTRB, response stability, memory backpressure, alignment checks |
@@ -1596,6 +1597,10 @@ Completed and near-term activities:
 ## Phase 2 — Bus and Interconnect Verification
 
 AXI4 Interconnect v1 checkpoint completed.
+
+* AXI4 Master v1 single-beat verification ✅
+
+* End-to-end Master → Interconnect → AXI4 Slave integration ✅
 
 Completed within the declared v1 scope:
 
@@ -1698,6 +1703,8 @@ riscv_cpu_project/
 │   ├── register_file_coverage.sv
 │   ├── cpu_exec_spike_diff_smoke_tb.sv
 │   ├── axi4_interconnect_smoke_tb.sv
+│   ├── axi4_master_tb.sv
+│   ├── axi4_master_interconnect_tb.sv
 │   ├── cache_v2_tb.sv
 │   ├── reference/
 │   │   ├── generate_fpu_vectors.py
@@ -1839,6 +1846,8 @@ The current focus includes:
 * CPU Execution Core synthesis + GLS architectural smoke ✅
 * AXI4 single-beat slave verification closure ✅
 * AXI4 reachable functional coverage closure ✅
+* AXI4 Master v1 verification checkpoint ✅
+
 * AXI4 Interconnect v1 verification checkpoint ✅
 * Cache V2 directed verification checkpoint ✅
 
