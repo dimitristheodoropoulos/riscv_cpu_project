@@ -55,6 +55,7 @@ The current primary verification scope covers:
 - Register File
 - CPU Execution Core (`cpu_exec_core`)
 - AXI4 single-beat slave interface
+- AXI4 Master v1
 - AXI4 Interconnect v1
 - Cache V2
 
@@ -110,6 +111,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | Register File | `rtl/register_file.sv` | Self-checking TB + scoreboard + reference model + coverage | ✅ Verified for defined register-file behavior |
 | CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ Closed for defined RV32I execution subset |
 | AXI4 Slave | `rtl/axi4/axi4_slave.sv` | UVM + scoreboard + protocol SVA + directed stress + functional coverage | ✅ Closed within declared single-beat scope |
+| AXI4 Master v1 | `rtl/axi4/axi4_master.sv` | Directed self-checking verification + end-to-end Master → Interconnect → real AXI4 slaves | Verified within declared single-beat scope |
 | AXI4 Interconnect v1 | `rtl/interconnect/axi4_interconnect.sv` | Integration smoke + bound SVA + real AXI4 slave targets | ✅ Verified within declared v1 scope |
 | Cache V2 | `rtl/cache_v2.sv` | Directed self-checking verification + memory backpressure + WSTRB + response-stability + alignment checks | ✅ Passed within declared directed scope |
 
@@ -883,6 +885,76 @@ integration remain outside the current scope.
 
 ---
 
+# AXI4 Master Verification
+
+The project includes a deliberately constrained AXI4 Master v1:
+
+- `rtl/axi4/axi4_master.sv`
+- `tests/axi4_master_tb.sv`
+- `tests/axi4_master_interconnect_tb.sv`
+
+The AXI4 Master v1 supports single-beat read and write transactions with one command outstanding at a time.
+
+### Declared scope
+
+- single-beat reads and writes
+- transaction ID propagation
+- AW/W write-channel sequencing
+- B-channel response handling
+- AR/R read-channel sequencing
+- WSTRB propagation
+- AXI AW backpressure and payload stability
+- AXI AR backpressure and payload stability
+- local response backpressure and response stability
+- single-outstanding command behavior
+- integration with AXI4 Interconnect v1
+
+### Out of scope
+
+- burst transactions
+- multiple outstanding transactions
+- QoS
+- cache coherency
+- ACE / CHI
+- full AXI4 feature-space verification
+
+### Verification evidence
+
+Standalone directed verification:
+
+- reset / idle command readiness
+- write command acceptance
+- AW backpressure and payload stability
+- WDATA / WSTRB / WLAST checking
+- B-channel response handling
+- read command acceptance
+- AR backpressure and payload stability
+- R-channel response handling
+
+Observed:
+
+`AXI4 MASTER V1: PASS`
+
+End-to-end integration verification:
+
+- Master → Interconnect → real AXI4 Slave path
+- S0 write/read
+- S1 write/read
+- S1 address translation
+- WSTRB propagation
+- unmapped write/read → DECERR
+- local response backpressure and stability
+- single-outstanding command behavior
+- response ID and response-code checking
+
+Observed:
+
+`AXI4 MASTER -> INTERCONNECT -> SLAVES: PASS`
+
+This checkpoint verifies the AXI4 Master within the declared directed single-beat v1 scope. It does not claim complete AXI4 compliance verification.
+
+---
+
 # AXI4 Interconnect Verification
 
 The project includes a dedicated AXI4 Interconnect v1 verification
@@ -1605,7 +1677,8 @@ riscv_cpu_project/
 │   ├── register_file.sv
 │   ├── cache_v2.sv
 │   ├── axi4/
-│   │   └── axi4_slave.sv
+│   │   ├── axi4_slave.sv
+│   │   └── axi4_master.sv
 │   └── interconnect/
 │       └── axi4_interconnect.sv
 │
