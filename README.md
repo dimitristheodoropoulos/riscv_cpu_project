@@ -56,6 +56,7 @@ The current primary verification scope covers:
 - CPU Execution Core (`cpu_exec_core`)
 - AXI4 single-beat slave interface
 - AXI4 Interconnect v1
+- Cache V2
 
 The AXI4 slave verification scope covers a deliberately constrained
 single-beat AXI4 slave interface, including functional checking,
@@ -110,6 +111,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | CPU Execution Core | `rtl/cpu_exec_core.sv` | UVM agent + reference model + scoreboard + architectural checking + RTL coverage | ✅ Closed for defined RV32I execution subset |
 | AXI4 Slave | `rtl/axi4/axi4_slave.sv` | UVM + scoreboard + protocol SVA + directed stress + functional coverage | ✅ Closed within declared single-beat scope |
 | AXI4 Interconnect v1 | `rtl/interconnect/axi4_interconnect.sv` | Integration smoke + bound SVA + real AXI4 slave targets | ✅ Verified within declared v1 scope |
+| Cache V2 | `rtl/cache_v2.sv` | Directed self-checking verification + memory backpressure + WSTRB + response-stability + alignment checks | ✅ Passed within declared directed scope |
 
 The status labels intentionally distinguish between:
 
@@ -151,6 +153,7 @@ relying on a single testbench.
        │  Reference  │
        │    Model    │
        └─────────────┘
+
 ```
 
 Different blocks use different combinations of these components according
@@ -182,6 +185,7 @@ The ALU is implemented in:
 
 ```text
 rtl/alu.sv
+
 ```
 
 Supported operations:
@@ -195,6 +199,7 @@ XOR
 SLL
 SRA
 SLT
+
 ```
 
 Additional outputs include:
@@ -202,6 +207,7 @@ Additional outputs include:
 ```text
 Zero
 Signed overflow
+
 ```
 
 ## Verification Environment
@@ -234,6 +240,7 @@ Current closure:
 8/8 opcode bins hit
 Zero and non-zero behavior exercised
 Overflow and non-overflow behavior exercised
+
 ```
 
 ## Formal Verification
@@ -244,12 +251,14 @@ The ALU has been formally verified using:
 SymbiYosys
 Boolector
 Bounded Model Checking
+
 ```
 
 Current result:
 
 ```text
 4/4 implemented ALU formal properties PASS
+
 ```
 
 ---
@@ -262,6 +271,7 @@ The Control Unit is implemented in:
 
 ```text
 rtl/cu.sv
+
 ```
 
 The current decoding scope is:
@@ -270,6 +280,7 @@ The current decoding scope is:
 R-type
 LW
 SW
+
 ```
 
 ## Verification Environment
@@ -299,6 +310,7 @@ rtl/fpu_add.sv
 rtl/fpu_sub.sv
 rtl/fpu_mul.sv
 rtl/fpu_div.sv
+
 ```
 
 The FPU operates on 32-bit IEEE-754 binary32 operands.
@@ -308,6 +320,7 @@ defined in:
 
 ```text
 docs/fpu_ieee754_verification_matrix.md
+
 ```
 
 ---
@@ -318,6 +331,7 @@ The directed FPU testbench is:
 
 ```text
 tests/fpu_tb.sv
+
 ```
 
 The test suite exercises arithmetic operations and important boundary
@@ -334,6 +348,7 @@ The project contains an independent Python reference-model infrastructure:
 reference/binary32.py
 reference/fpu_reference_model.py
 reference/scoreboard_bridge.py
+
 ```
 
 The reference model is intentionally separated from the SystemVerilog RTL.
@@ -346,6 +361,7 @@ The dedicated differential testbench is:
 
 ```text
 tests/fpu_differential_tb.sv
+
 ```
 
 The conceptual architecture is:
@@ -366,6 +382,7 @@ The conceptual architecture is:
                   Comparator
                        │
                 PASS / MISMATCH
+
 ```
 
 The current FPU differential regression has completed with:
@@ -374,6 +391,7 @@ The current FPU differential regression has completed with:
 4154 generated differential vectors
 0 mismatches
 0 errors
+
 ```
 
 ---
@@ -387,6 +405,7 @@ uvm_tb/fpu_agent/fpu_pkg.sv
 uvm_tb/fpu_agent/fpu_if.sv
 uvm_tb/tb_top_fpu.sv
 uvm_tb/tests/fpu_smoke_test.sv
+
 ```
 
 The FPU package contains multiple sequence types for constrained-style
@@ -400,12 +419,12 @@ The FPU coverage closure flow uses Questa coverage collection.
 
 The latest FPU closure analysis reports:
 
-| Coverage Metric    | Raw Coverage | Reachable Coverage | Waivers |
-| ------------------ | -----------: | -----------------: | ------: |
-| Branch Coverage    |        96.72% |            100.00% |       6 |
-| Condition Coverage |        88.50% |            100.00% |      13 |
-| Statement Coverage |        95.37% |            100.00% |      17 |
-| Toggle Coverage    |        79.95% |                  - |      -  |
+| Coverage Metric | Raw Coverage | Reachable Coverage | Waivers |
+| --- | --- | --- | --- |
+| Branch Branch | 96.72% | 100.00% | 6 |
+| Condition Coverage | 88.50% | 100.00% | 13 |
+| Statement Coverage | 95.37% | 100.00% | 17 |
+| Toggle Coverage | 79.95% | - | - |
 
 The waivers are **not** based on merely missing coverage hits.
 
@@ -420,6 +439,7 @@ Detailed evidence is documented in:
 
 ```text
 docs/fpu_branch_waivers.md
+
 ```
 
 The closure statement is:
@@ -439,6 +459,7 @@ The CPU Execution Core is implemented in:
 
 ```text
 rtl/cpu_exec_core.sv
+
 ```
 
 This is a minimal single-cycle RV32I execution datapath.
@@ -456,6 +477,7 @@ SRA
 SLT
 LW
 SW
+
 ```
 
 It has:
@@ -495,6 +517,7 @@ the supported instruction subset:
 R-type: ADD, SUB, AND, OR, XOR, SLL, SRA, SLT
 I-type: LW
 S-type: SW
+
 ```
 
 ## Scoreboard
@@ -517,12 +540,14 @@ OR
 XOR
 SLL
 SLT
+
 ```
 
 The DUT records architectural commit information as:
 
 ```text
 PC + instruction + destination register + architectural result
+
 ```
 
 The Python differential flow compares the DUT commit trace against the
@@ -535,6 +560,7 @@ The current differential smoke regression reports:
 DUT/Spike commit traces: matched
 Architectural mismatches: 0
 Python differential tests: 27 passed
+
 ```
 
 The differential flow is intentionally scoped to the currently supported
@@ -546,22 +572,22 @@ verification.
 The current directed CPU execution suite includes:
 
 | Instruction / Case | Status |
-|--------------------|--------|
-| ADD                | ✅ Pass |
-| SUB                | ✅ Pass |
-| AND                | ✅ Pass |
-| OR                 | ✅ Pass |
-| XOR                | ✅ Pass |
-| SLL                | ✅ Pass |
-| SRA                | ✅ Pass |
-| SLT                | ✅ Pass |
-| SW + LW            | ✅ Pass |
+| --- | --- |
+| ADD | ✅ Pass |
+| SUB | ✅ Pass |
+| AND | ✅ Pass |
+| OR | ✅ Pass |
+| XOR | ✅ Pass |
+| SLL | ✅ Pass |
+| SRA | ✅ Pass |
+| SLT | ✅ Pass |
+| SW + LW | ✅ Pass |
 | x0 write suppression | ✅ Pass |
 | Unsupported R-type funct3 | ✅ Pass |
 | Zero-instruction PC behavior | ✅ Pass |
 | FP register initialization | ✅ Pass |
-| ADD signed overflow   | ✅ Pass |
-| SUB signed overflow   | ✅ Pass |
+| ADD signed overflow | ✅ Pass |
+| SUB signed overflow | ✅ Pass |
 
 Scoreboard summary:
 
@@ -575,6 +601,7 @@ Mismatches            : 0
 
 UVM_ERROR = 0
 UVM_FATAL = 0
+
 ```
 
 ## CPU Execution RTL Coverage Closure
@@ -583,21 +610,21 @@ RTL coverage was collected using Questa Coverage (UCDB).
 
 Verified RTL blocks:
 
-| Block        | Branch      | Condition   | Expression   | Statement   |
-| ------------ | ----------- | ----------- | ------------ | ----------- |
-| `cu`         | 16/16 100%  | –           | –            | 34/34 100%  |
-| `register_file` | 12/12 100% | 3/3 100%    | –            | 14/14 100%  |
-| `alu`        | 11/11 100%  | 1/1 100%    | **5/5 100%** | 14/14 100%  |
-| `mmu`        | 5/5 100%    | –           | 2/2 100%     | 9/9 100%    |
-| `cpu_exec_core` | 19/19 100% | 1/1 100%    | **6/7 85.71%** | 9/9 100%    |
+| Block | Branch | Condition | Expression | Statement |
+| --- | --- | --- | --- | --- |
+| `cu` | 16/16 100% | – | – | 34/34 100% |
+| `register_file` | 12/12 100% | 3/3 100% | – | 14/14 100% |
+| `alu` | 11/11 100% | 1/1 100% | **5/5 100%** | 14/14 100% |
+| `mmu` | 5/5 100% | – | 2/2 100% | 9/9 100% |
+| `cpu_exec_core` | 19/19 100% | 1/1 100% | **6/7 85.71%** | 9/9 100% |
 | **DUT total** | **63/63 100%** | **5/5 100%** | **13/14 92.86%** | **80/80 100%** |
 
 The achieved reachable coverage (after justified waiver) is:
 
-- **Branch**: 63/63 = 100%
-- **Condition**: 5/5 = 100%
-- **Expression**: 13/14 = 92.86% raw, with one justified waiver
-- **Statement**: 80/80 = 100%
+* **Branch**: 63/63 = 100%
+* **Condition**: 5/5 = 100%
+* **Expression**: 13/14 = 92.86% raw, with one justified waiver
+* **Statement**: 80/80 = 100%
 
 **Waiver detail:**
 In `cpu_exec_core.sv`, the expression `(reg_init_enable ? reg_init_is_fp : is_fp)` has one uncovered input term:
@@ -630,12 +657,14 @@ Gate-level netlist
 Icarus Verilog + Yosys simcells
  ↓
 Architectural GLS smoke test
+
 ```
 
 The dedicated GLS testbench is:
 
 ```text
 tests/cpu_exec_gls_smoke_tb.sv
+
 ```
 
 The current GLS smoke scope covers:
@@ -658,6 +687,7 @@ Icarus GLS compilation        PASS
 Architectural GLS smoke      PASS
 Architectural mismatches      0
 Final PC                      0x00000024
+
 ```
 
 The GLS test validates architectural outputs exposed by the synthesized
@@ -675,6 +705,7 @@ Manual functional coverage is implemented in:
 
 ```text
 uvm_tb/cpu_agent/cpu_functional_coverage.sv
+
 ```
 
 The component receives original stimulus from the CPU driver and tracks
@@ -702,6 +733,7 @@ uvm_tb/axi4/axi4_protocol_sva.sv
 uvm_tb/axi4/axi4_agent.sv
 uvm_tb/axi4/axi4_env.sv
 uvm_tb/axi4/axi4_test.sv
+
 ```
 
 ## Verification Scope
@@ -733,6 +765,7 @@ AWLEN = 0
 ARLEN = 0
 WLAST = 1
 RLAST = 1
+
 ```
 
 The environment does not claim complete AXI4 verification for arbitrary
@@ -770,6 +803,7 @@ UVM regression:
 uvm_tb/axi4/axi4_directed_tb.sv
 uvm_tb/axi4/axi4_backpressure_tb.sv
 uvm_tb/axi4/axi4_handshake_stress_tb.sv
+
 ```
 
 The directed smoke test verifies reset behavior, response IDs, response
@@ -798,21 +832,21 @@ executable counters and cross-coverage matrices.
 
 The functional coverage model contains:
 
-| Coverage Item         |    Bins |
-| --------------------- | ------: |
-| Operation             |       2 |
-| Read ID               |      16 |
-| Write ID              |      16 |
-| WSTRB class           |       4 |
-| BRESP class           |       2 |
-| RRESP class           |       2 |
-| Read address region   |       3 |
-| Write address region  |       3 |
-| Write address × WSTRB |      12 |
-| Write ID × WSTRB      |      64 |
-| Read ID × address     |      48 |
-| Write ID × address    |      48 |
-| **Total**             | **220** |
+| Coverage Item | Bins |
+| --- | --- |
+| Operation | 2 |
+| Read ID | 16 |
+| Write ID | 16 |
+| WSTRB class | 4 |
+| BRESP class | 2 |
+| RRESP class | 2 |
+| Read address region | 3 |
+| Write address region | 3 |
+| Write address × WSTRB | 12 |
+| Write ID × WSTRB | 64 |
+| Read ID × address | 48 |
+| Write ID × address | 48 |
+| **Total** | **220** |
 
 Final closure:
 
@@ -820,6 +854,7 @@ Final closure:
 Theoretical functional coverage: 218/220 = 99.09%
 Reachable functional coverage:   218/218 = 100.00%
 Unreachable bins:                2
+
 ```
 
 The two unreachable bins are the non-OKAY response classes:
@@ -827,6 +862,7 @@ The two unreachable bins are the non-OKAY response classes:
 ```text
 BRESP_OTHER
 RRESP_OTHER
+
 ```
 
 The current AXI4 slave DUT always produces `OKAY` responses, so these bins
@@ -856,6 +892,7 @@ milestone:
 rtl/interconnect/axi4_interconnect.sv
 tests/axi4_interconnect_smoke_tb.sv
 uvm_tb/bus/axi4_interconnect_sva.sv
+
 ```
 
 ## Verification Scope
@@ -899,6 +936,7 @@ Observed integration smoke result:
 
 ```text
 AXI4 INTERCONNECT SMOKE: PASS
+
 ```
 
 ## Protocol Assertions
@@ -907,12 +945,13 @@ A dedicated bound SVA file provides interconnect-level protocol checks:
 
 ```text
 uvm_tb/bus/axi4_interconnect_sva.sv
+
 ```
 
 The bound assertions verify:
 
 * single-beat write-address and read-address constraints
-  (`AWLEN = 0`, `ARLEN = 0`)
+(`AWLEN = 0`, `ARLEN = 0`)
 * `WLAST = 1` on accepted write-data transfers
 * exclusive S0/S1 write targeting
 * exclusive S0/S1 read targeting
@@ -938,6 +977,63 @@ tracked as future extensions in the verification roadmap.
 
 ---
 
+# Cache V2 Verification
+
+The project includes a deliberately scoped Cache V2 RTL block and a
+directed self-checking verification environment:
+
+```text
+rtl/cache_v2.sv
+tests/cache_v2_tb.sv
+docs/cache_verification_requirements.md
+docs/cache_verification_plan.md
+
+```
+
+The Cache V2 organization uses:
+
+* 16 cache lines
+* 1 word (32-bit) per line
+* 32-bit addresses
+* TAG [31:6]
+* INDEX [5:2]
+* OFFSET [1:0]
+
+The implemented control flow is:
+
+`IDLE → LOOKUP → REFILL / MEM_WRITE → RESP`
+
+The directed verification covers:
+
+* read hits
+* read misses and refill
+* replacement behavior
+* write hits
+* write misses without allocation
+* WSTRB byte-lane behavior
+* response stability while `RSP_VALID=1 && RSP_READY=0`
+* memory-side `VALID`/`READY` backpressure
+* one outstanding request
+* accepted-request word-alignment checks
+
+Observed directed verification result:
+
+* 48 PASS records
+* 0 FAIL records
+* 34 check() assertions
+* 14 CACHE-REQ-013 alignment checks
+* `CACHE_V2 DIRECTED TEST: PASS`
+
+The alignment evidence demonstrates that the accepted requests exercised
+by the current directed scenarios are word-aligned. It does not claim that
+the DUT rejects arbitrary unaligned requests.
+
+This checkpoint does not claim constrained-random cache verification,
+an independent cache reference model/scoreboard, SVA closure, functional
+coverage closure, or synthesis/GLS verification for Cache V2.
+
+---
+
 # MMU Verification
 
 ## RTL
@@ -946,6 +1042,7 @@ The MMU is implemented in:
 
 ```text
 rtl/mmu.sv
+
 ```
 
 The current verification infrastructure includes:
@@ -953,6 +1050,7 @@ The current verification infrastructure includes:
 ```text
 tests/mmu_tb.sv
 tests/mmu_coverage.sv
+
 ```
 
 Verification focuses on:
@@ -970,6 +1068,7 @@ MMU verification is currently classified as:
 
 ```text
 Verified for current CPU execution scope
+
 ```
 
 Full virtual-memory/page-table architecture is outside the present project
@@ -985,6 +1084,7 @@ The Register File is implemented in:
 
 ```text
 rtl/register_file.sv
+
 ```
 
 A dedicated self-checking verification environment has been developed.
@@ -997,6 +1097,7 @@ tests/register_file_scoreboard.sv
 tests/register_file_reference_model.sv
 tests/register_file_assertions.sv
 tests/register_file_coverage.sv
+
 ```
 
 The verification architecture is:
@@ -1011,12 +1112,14 @@ The verification architecture is:
              │
              ▼
        Reference Model
+
 ```
 
 The Register File has been covered at standalone level with:
 
 ```text
 12/12 branch coverage
+
 ```
 
 ---
@@ -1035,7 +1138,7 @@ Directed tests are used for:
 * regression reproduction;
 * targeted coverage closure.
 
-## Pseudo-Random Testing
+## Seeded Pseudo-Random Testing
 
 The selected free simulator environment does not provide the complete
 license-gated SystemVerilog constrained-random feature set.
@@ -1045,6 +1148,7 @@ Therefore pseudo-random stimulus is generated using:
 ```systemverilog
 $urandom
 $urandom_range
+
 ```
 
 ## Scoreboards
@@ -1064,6 +1168,7 @@ reference/binary32.py
 reference/fpu_reference_model.py
 reference/scoreboard_bridge.py
 uvm_tb/cpu_model/cpu_reference_model.sv
+
 ```
 
 ## Differential Verification
@@ -1087,6 +1192,7 @@ The main FPU differential testbench is:
 
 ```text
 tests/fpu_differential_tb.sv
+
 ```
 
 The CPU differential infrastructure is:
@@ -1095,6 +1201,7 @@ The CPU differential infrastructure is:
 scripts/riscv_iss/
 tests/riscv_iss/
 tests/cpu_exec_spike_diff_smoke_tb.sv
+
 ```
 
 ---
@@ -1125,20 +1232,22 @@ Branch
 Condition
 Statement
 Toggle
+
 ```
 
 The latest FPU coverage reachability analysis shows:
 
-| Metric    | Raw Coverage | Reachable Coverage | Waived |
-|-----------|-------------:|-------------------:|-------:|
-| Branch    |        96.72% |            100.00% |      6 |
-| Condition |        88.50% |            100.00% |     13 |
-| Statement |        95.37% |            100.00% |     17 |
+| Metric | Raw Coverage | Reachable Coverage | Waived |
+| --- | --- | --- | --- |
+| Branch | 96.72% | 100.00% | 6 |
+| Condition | 88.50% | 100.00% | 13 |
+| Statement | 95.37% | 100.00% | 17 |
 
 CPU execution RTL coverage is documented in:
 
 ```text
 docs/cpu_exec_verification_plan.md
+
 ```
 
 ---
@@ -1152,6 +1261,7 @@ Current examples include:
 ```text
 tests/register_file_assertions.sv
 uvm_tb/bus/axi4_interconnect_sva.sv
+
 ```
 
 as well as assertion support in the ALU/CU verification environment and
@@ -1171,6 +1281,7 @@ SymbiYosys
     │
     ▼
 Boolector
+
 ```
 
 Current results:
@@ -1185,6 +1296,7 @@ FPU MUL waiver invariant:
 FPU DIV shift invariant:
   shift_cnt >= 10
   PASS
+
 ```
 
 The DIV full-DUT formal proof is blocked by a Yosys limitation on the
@@ -1198,12 +1310,14 @@ The project provides a seed-based regression framework:
 
 ```text
 run_regression.sh
+
 ```
 
 Usage:
 
 ```bash
 ./run_regression.sh <target> <num_seeds>
+
 ```
 
 The FPU also has a dedicated coverage-closure target.
@@ -1216,6 +1330,7 @@ The primary simulation entry point is:
 
 ```text
 run_sim.sh
+
 ```
 
 Examples:
@@ -1225,6 +1340,7 @@ Examples:
 ./run_sim.sh cu
 ./run_sim.sh fpu_closure
 ./run_sim.sh cpu_exec
+
 ```
 
 ---
@@ -1242,6 +1358,7 @@ The primary UVM simulation environment uses:
 
 ```text
 Questa - Altera FPGA Starter Edition
+
 ```
 
 The simulator provides the UVM infrastructure required for the current
@@ -1265,6 +1382,7 @@ Formal verification uses:
 ```text
 SymbiYosys
 Boolector
+
 ```
 
 ---
@@ -1348,33 +1466,34 @@ connecting it to the CPU execution core reset.
 The project intentionally maintains explicit status instead of claiming
 project-wide closure.
 
-| Verification Area              | Status         | Notes                                       |
-| ------------------------------ | -------------- | ------------------------------------------- |
-| ALU functional verification    | ✅ Closed       | Scoreboard + directed/pseudo-random testing |
-| ALU functional coverage        | ✅ Closed       | 8/8 opcode bins hit                         |
-| ALU formal verification        | ✅ Passed       | 4/4 properties                              |
-| Control Unit verification      | ✅ Closed       | UVM + independent decode model              |
-| FPU directed verification      | ✅ Passed       | Extensive arithmetic/corner-case testing    |
-| FPU differential verification  | ✅ Passed       | 4154 vectors, 0 mismatches                  |
-| FPU UVM infrastructure         | ✅ Implemented  | Transaction and regression foundation       |
-| FPU coverage reachable closure | ✅ Closed       | Branch/condition/statement reachable 100%   |
-| MMU directed verification      | ✅ Verified     | Integrated into CPU exec load/store path    |
-| MMU coverage                   | ✅ Closed       | 100% branch coverage in CPU exec            |
-| Register File verification     | ✅ Closed       | 12/12 branch coverage standalone            |
-| Register File assertions       | ✅ Implemented  | Independent invariant checking              |
-| CPU Execution Core verification| ✅ Closed       | Closed for defined RV32I execution subset   |
-| CPU Execution directed suite   | ✅ Passed       | 15 tests, 15/15 matches                     |
+| Verification Area | Status | Notes |
+| --- | --- | --- |
+| ALU functional verification | ✅ Closed | Scoreboard + directed/pseudo-random testing |
+| ALU functional coverage | ✅ Closed | 8/8 opcode bins hit |
+| ALU formal verification | ✅ Passed | 4/4 properties |
+| Control Unit verification | ✅ Closed | UVM + independent decode model |
+| FPU directed verification | ✅ Passed | Extensive arithmetic/corner-case testing |
+| FPU differential verification | ✅ Passed | 4154 vectors, 0 mismatches |
+| FPU UVM infrastructure | ✅ Implemented | Transaction and regression foundation |
+| FPU coverage reachable closure | ✅ Closed | Branch/condition/statement reachable 100% |
+| MMU directed verification | ✅ Verified | Integrated into CPU exec load/store path |
+| MMU coverage | ✅ Closed | 100% branch coverage in CPU exec |
+| Register File verification | ✅ Closed | 12/12 branch coverage standalone |
+| Register File assertions | ✅ Implemented | Independent invariant checking |
+| CPU Execution Core verification | ✅ Closed | Closed for defined RV32I execution subset |
+| CPU Execution directed suite | ✅ Passed | 15 tests, 15/15 matches |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
-| CPU DUT ↔ Spike differential   | ✅ Passed       | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
-| CPU Execution Core GLS         | ✅ Passed       | Yosys synthesis + generic gate-level architectural smoke |
+| CPU DUT ↔ Spike differential | ✅ Passed | 7 RV32I R-type commits, 27 Python tests, 0 mismatches |
+| CPU Execution Core GLS | ✅ Passed | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
 | AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID/request association, boundary and unmapped-address checks, protocol-stability SVA |
+| Cache V2 directed verification | ✅ Passed | 48 PASS records, 0 FAIL records, WSTRB, response stability, memory backpressure, alignment checks |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
-| Formal verification            | ✅ Partial      | ALU 4/4, FPU MUL/DIV invariants PASS        |
-| Unified CI regression          | 🟡 In progress  | Local regression exists                     |
-| CPU integration verification   | 🟢 Initial      | CPU exec core verified; full integration remains |
-| Full-system verification       | ⚪ Not started  | Outside current scope                       |
+| Formal verification | ✅ Partial | ALU 4/4, FPU MUL/DIV invariants PASS |
+| Unified CI regression | 🟡 In progress | Local regression exists |
+| CPU integration verification | 🟢 Initial | CPU exec core verified; full integration remains |
+| Full-system verification | ⚪ Not started | Outside current scope |
 
 ---
 
@@ -1400,6 +1519,7 @@ Completed and near-term activities:
 * AXI4 protocol SVA + backpressure verification ✅
 * AXI4 handshake stress verification ✅
 * AXI4 reachable functional coverage closure ✅
+* Cache V2 directed verification checkpoint ✅
 
 ## Phase 2 — Bus and Interconnect Verification
 
@@ -1483,6 +1603,7 @@ riscv_cpu_project/
 │   ├── fpu_div.sv
 │   ├── mmu.sv
 │   ├── register_file.sv
+│   ├── cache_v2.sv
 │   ├── axi4/
 │   │   └── axi4_slave.sv
 │   └── interconnect/
@@ -1504,6 +1625,7 @@ riscv_cpu_project/
 │   ├── register_file_coverage.sv
 │   ├── cpu_exec_spike_diff_smoke_tb.sv
 │   ├── axi4_interconnect_smoke_tb.sv
+│   ├── cache_v2_tb.sv
 │   ├── reference/
 │   │   ├── generate_fpu_vectors.py
 │   │   ├── generate_fpu_differential_vectors.py
@@ -1573,13 +1695,16 @@ riscv_cpu_project/
 │   ├── cpu_exec_verification_plan.md
 │   ├── cpu_exec_verification_summary.md
 │   ├── cpu_exec_formal_verification.md
-│   └── CPU_VERIFICATION_SIGNOFF.md
+│   ├── CPU_VERIFICATION_SIGNOFF.md
+│   ├── cache_verification_requirements.md
+│   └── cache_verification_plan.md
 │
 ├── run_sim.sh
 ├── run_regression.sh
 ├── run_formal.sh
 ├── verification_plan.md
 └── README.md
+
 ```
 
 ---
@@ -1590,6 +1715,7 @@ The FPU verification contract is documented separately in:
 
 ```text
 docs/fpu_ieee754_verification_matrix.md
+
 ```
 
 ---
@@ -1627,6 +1753,7 @@ Assertions
 Formal Verification
 Seed-Based Regression
 Toolchain Analysis
+
 ```
 
 The current focus includes:
@@ -1640,6 +1767,7 @@ The current focus includes:
 * AXI4 single-beat slave verification closure ✅
 * AXI4 reachable functional coverage closure ✅
 * AXI4 Interconnect v1 verification checkpoint ✅
+* Cache V2 directed verification checkpoint ✅
 
 The AXI4 Interconnect v1 verification checkpoint is complete.
 
