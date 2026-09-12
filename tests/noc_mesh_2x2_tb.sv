@@ -407,6 +407,159 @@ module noc_mesh_2x2_tb;
     endtask
 
     // ------------------------------------------------------------
+    // Complete legal endpoint traffic matrix
+    //
+    // Exercise all 16 legal src/dst combinations in the 2x2 mesh:
+    //   - 4 local/self-delivery cases
+    //   - all one-hop cases
+    //   - all legal multi-hop/reverse paths
+    //
+    // This is executable traffic-space coverage only; no DUT changes.
+    // ------------------------------------------------------------
+
+    task automatic send_matrix_packet(
+        input integer src_ep,
+        input integer dst_ep,
+        input [3:0] txn_id
+    );
+        noc_packet_t expected;
+        begin
+            expected.src_id  = src_ep[2:0];
+            expected.dst_id  = dst_ep[2:0];
+            expected.txn_id  = txn_id;
+            expected.payload = 32'hC000_0000 |
+                               (src_ep << 8) |
+                               dst_ep;
+
+            case (src_ep)
+                0: begin
+                    ep0_in_packet = expected;
+                    ep0_in_valid  = 1'b1;
+                    wait (ep0_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep0_in_valid = 1'b0;
+                end
+
+                1: begin
+                    ep1_in_packet = expected;
+                    ep1_in_valid  = 1'b1;
+                    wait (ep1_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep1_in_valid = 1'b0;
+                end
+
+                2: begin
+                    ep2_in_packet = expected;
+                    ep2_in_valid  = 1'b1;
+                    wait (ep2_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep2_in_valid = 1'b0;
+                end
+
+                3: begin
+                    ep3_in_packet = expected;
+                    ep3_in_valid  = 1'b1;
+                    wait (ep3_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep3_in_valid = 1'b0;
+                end
+
+                default: begin
+                    $display("FAIL: invalid matrix source EP%0d", src_ep);
+                    $fatal(1);
+                end
+            endcase
+
+            case (dst_ep)
+                0: begin
+                    wait (ep0_out_valid === 1'b1);
+                    check_packet(
+                        ep0_out_packet,
+                        expected,
+                        $sformatf("traffic matrix EP%0d -> EP%0d",
+                                  src_ep, dst_ep)
+                    );
+                    @(posedge clk);
+                    #1;
+                end
+
+                1: begin
+                    wait (ep1_out_valid === 1'b1);
+                    check_packet(
+                        ep1_out_packet,
+                        expected,
+                        $sformatf("traffic matrix EP%0d -> EP%0d",
+                                  src_ep, dst_ep)
+                    );
+                    @(posedge clk);
+                    #1;
+                end
+
+                2: begin
+                    wait (ep2_out_valid === 1'b1);
+                    check_packet(
+                        ep2_out_packet,
+                        expected,
+                        $sformatf("traffic matrix EP%0d -> EP%0d",
+                                  src_ep, dst_ep)
+                    );
+                    @(posedge clk);
+                    #1;
+                end
+
+                3: begin
+                    wait (ep3_out_valid === 1'b1);
+                    check_packet(
+                        ep3_out_packet,
+                        expected,
+                        $sformatf("traffic matrix EP%0d -> EP%0d",
+                                  src_ep, dst_ep)
+                    );
+                    @(posedge clk);
+                    #1;
+                end
+
+                default: begin
+                    $display("FAIL: invalid matrix destination EP%0d", dst_ep);
+                    $fatal(1);
+                end
+            endcase
+
+            $display(
+                "PASS: traffic matrix EP%0d -> EP%0d",
+                src_ep,
+                dst_ep
+            );
+        end
+    endtask
+
+    task automatic test_complete_endpoint_traffic_matrix;
+        integer src_ep;
+        integer dst_ep;
+        integer txn;
+        begin
+            txn = 0;
+
+            for (src_ep = 0; src_ep < 4; src_ep = src_ep + 1) begin
+                for (dst_ep = 0; dst_ep < 4; dst_ep = dst_ep + 1) begin
+                    send_matrix_packet(
+                        src_ep,
+                        dst_ep,
+                        txn[3:0]
+                    );
+                    txn = txn + 1;
+                end
+            end
+
+            $display("PASS: complete 4x4 legal endpoint traffic matrix");
+        end
+    endtask
+
+    // ------------------------------------------------------------
     // Test
     // ------------------------------------------------------------
 
@@ -435,6 +588,7 @@ module noc_mesh_2x2_tb;
 
         test_ep0_to_ep3_backpressure();
         test_parallel_independent_flows();
+        test_complete_endpoint_traffic_matrix();
 
         $display("");
         $display("PASS: NoC 2x2 basic end-to-end datapath test completed");
