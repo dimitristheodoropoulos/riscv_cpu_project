@@ -301,6 +301,108 @@ module noc_router_tb;
         #1;
 
         /*
+         * NOC-REQ-017: bounded arbitration / tight 3-opportunity case.
+         *
+         * At R00, LOCAL, SOUTH, and EAST are the three legal contenders
+         * for the LOCAL output. After synchronous reset, the LOCAL-output
+         * RR pointer starts at LOCAL, so the expected service order is:
+         *
+         *   opportunity 1: LOCAL
+         *   opportunity 2: SOUTH
+         *   opportunity 3: EAST
+         *
+         * All three packets are injected simultaneously and local_out_ready
+         * remains asserted. The third contender must be serviced on the
+         * third arbitration opportunity.
+         */
+        rst = 1'b1;
+
+        @(posedge clk);
+        #1;
+
+        rst = 1'b0;
+
+        north_out_ready = 1'b0;
+        south_out_ready = 1'b0;
+        east_out_ready  = 1'b0;
+        west_out_ready  = 1'b0;
+        local_out_ready = 1'b1;
+
+        @(negedge clk);
+
+        local_in_packet.src_id  = 3'd0;
+        local_in_packet.dst_id  = 3'd0;
+        local_in_packet.txn_id  = 4'h1;
+        local_in_packet.payload = 32'h1111_0001;
+        local_in_valid = 1'b1;
+
+        south_in_packet.src_id  = 3'd2;
+        south_in_packet.dst_id  = 3'd0;
+        south_in_packet.txn_id  = 4'h2;
+        south_in_packet.payload = 32'h2222_0002;
+        south_in_valid = 1'b1;
+
+        east_in_packet.src_id  = 3'd3;
+        east_in_packet.dst_id  = 3'd0;
+        east_in_packet.txn_id  = 4'h3;
+        east_in_packet.payload = 32'h3333_0003;
+        east_in_valid = 1'b1;
+
+        check(local_in_ready &&
+              south_in_ready &&
+              east_in_ready,
+              "NOC-REQ-017 three legal contenders accepted");
+
+        @(posedge clk);
+        #1;
+
+        local_in_valid = 1'b0;
+        south_in_valid = 1'b0;
+        east_in_valid  = 1'b0;
+
+        check(local_out_valid &&
+              local_out_ready,
+              "NOC-REQ-017 opportunity 1: LOCAL contender is serviced");
+
+        check(local_out_packet.src_id == 3'd0 &&
+              local_out_packet.dst_id == 3'd0 &&
+              local_out_packet.txn_id == 4'h1 &&
+              local_out_packet.payload == 32'h1111_0001,
+              "NOC-REQ-017 opportunity 1 selects LOCAL contender");
+
+        @(posedge clk);
+        #1;
+
+        check(local_out_valid &&
+              local_out_ready,
+              "NOC-REQ-017 opportunity 2: SOUTH contender is serviced");
+
+        check(local_out_packet.src_id == 3'd2 &&
+              local_out_packet.dst_id == 3'd0 &&
+              local_out_packet.txn_id == 4'h2 &&
+              local_out_packet.payload == 32'h2222_0002,
+              "NOC-REQ-017 opportunity 2 selects SOUTH contender");
+
+        @(posedge clk);
+        #1;
+
+        check(local_out_valid &&
+              local_out_ready,
+              "NOC-REQ-017 opportunity 3: EAST contender is serviced");
+
+        check(local_out_packet.src_id == 3'd3 &&
+              local_out_packet.dst_id == 3'd0 &&
+              local_out_packet.txn_id == 4'h3 &&
+              local_out_packet.payload == 32'h3333_0003,
+              "NOC-REQ-017 target contender is serviced on third opportunity");
+
+        @(posedge clk);
+        #1;
+
+        check(!local_out_valid,
+              "NOC-REQ-017 no fourth service is required");
+
+        /*
          * LOCAL routing
          */
         local_out_ready = 1'b1;

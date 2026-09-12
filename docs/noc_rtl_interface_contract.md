@@ -294,12 +294,19 @@ The physical router has five input directions:
 * `WEST`
 * `LOCAL`
 
-However, for any particular output, deterministic XY routing restricts the
-number of eligible requesters.
+However, for any particular output, deterministic XY routing and the declared
+2×2 mesh topology restrict the number of legal eligible requesters.
 
-The v1 arbitration bound is: **maximum 4 eligible input requesters per output**.
+The v1 arbitration bound is a **conservative upper bound of at most 4 eligible
+input requesters per output**.
 
-This four-requester bound is the scope used by NOC-REQ-008 and NOC-REQ-017.
+Within the declared 2×2 mesh and legal deterministic-XY traffic, the tight
+maximum is **3 eligible requesters per output**. A four-requester contention
+case is therefore not an achievable worst-case scenario within the current
+2×2 topology; the value 4 remains a conservative contractual upper bound.
+
+This bound is the scope used by NOC-REQ-008 and NOC-REQ-017.
+
 The implementation shall not interpret the bound as saying that a router has
 only four physical inputs.
 
@@ -320,11 +327,40 @@ The pointer shall not advance when:
 
 ### 9.3 Bounded Service
 
+An **arbitration opportunity** for a specific output is one cycle in which:
+
+1. at least one legal eligible requester exists for that output; and
+2. the downstream `out_ready` for that output is asserted.
+
+Such a cycle permits the current arbitration decision to result in a transfer.
+
+A successful service event is exactly:
+
+```text
+out_valid && out_ready
+```
+
+The following do **not** count as arbitration opportunities:
+
+* no eligible requester exists;
+* downstream `out_ready=0`;
+* no packet transfer occurs.
+
+The arbitration pointer shall advance only after a successful service event,
+as specified in §9.2.
+
 Under the declared v1 assumptions, a continuously requesting eligible contender
-with an available downstream path shall receive service within four arbitration
-opportunities.
+with an available downstream path shall receive service within the conservative
+bound of **4 arbitration opportunities**.
+
+For the declared 2×2 legal deterministic-XY topology, the tight maximum is
+**3 arbitration opportunities**, because no output can have more than three
+legal eligible requesters. The NOC-REQ-017 verification shall target this
+tight 3-opportunity bound; proving it also satisfies the conservative
+4-opportunity contractual bound.
 
 This is a bounded arbitration/liveness requirement.
+
 It is not a general claim of unrestricted NoC liveness under arbitrary future
 extensions.
 
