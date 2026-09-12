@@ -58,6 +58,7 @@ The current primary verification scope covers:
 - AXI4 Master v1
 - AXI4 Interconnect v1
 - Cache V2
+- NoC 2×2 mesh
 
 The AXI4 slave verification scope covers a deliberately constrained
 single-beat AXI4 slave interface, including functional checking,
@@ -114,6 +115,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | AXI4 Master v1 | `rtl/axi4/axi4_master.sv` | Directed self-checking verification + end-to-end Master → Interconnect → real AXI4 slaves | Verified within declared single-beat scope |
 | AXI4 Interconnect v1 | `rtl/interconnect/axi4_interconnect.sv` | Integration smoke + bound SVA + real AXI4 slave targets | ✅ Verified within declared v1 scope |
 | Cache V2 | `rtl/cache_v2.sv` | Directed self-checking verification + memory backpressure + WSTRB + response-stability + alignment checks | ✅ Passed within declared directed scope |
+| NoC 2×2 mesh | `rtl/noc_mesh_2x2.sv` | Router + mesh executable verification + end-to-end routing + backpressure + packet integrity | ✅ Checkpoint passed within declared 2×2 scope |
 
 The status labels intentionally distinguish between:
 
@@ -1565,6 +1567,7 @@ project-wide closure.
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
 | AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID/request association, boundary and unmapped-address checks, protocol-stability SVA |
 | Cache V2 directed verification | ✅ Passed | 48 PASS records, 0 FAIL records, WSTRB, response stability, memory backpressure, alignment checks |
+| NoC 2×2 mesh verification checkpoint | ✅ Passed | 2×2 mesh, end-to-end routing, multi-hop paths, valid/ready, backpressure stability, packet integrity, simultaneous independent flows |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification | ✅ Partial | ALU 4/4, FPU MUL/DIV invariants PASS |
 | Unified CI regression | 🟡 In progress | Local regression exists |
@@ -1596,6 +1599,7 @@ Completed and near-term activities:
 * AXI4 handshake stress verification ✅
 * AXI4 reachable functional coverage closure ✅
 * Cache V2 directed verification checkpoint ✅
+* NoC 2×2 mesh implementation + verification checkpoint ✅
 
 ## Phase 2 — Bus and Interconnect Verification
 
@@ -1853,8 +1857,16 @@ The current focus includes:
 
 * AXI4 Interconnect v1 verification checkpoint ✅
 * Cache V2 directed verification checkpoint ✅
+* NoC 2×2 mesh implementation + verification checkpoint ✅
 
-The AXI4 Interconnect v1 verification checkpoint is complete.
+The AXI4 Interconnect v1 and Cache V2 checkpoints are complete within
+their declared scopes. The NoC checkpoint covers the 2×2 mesh RTL,
+router/mesh executable verification, end-to-end routing, multi-hop paths,
+valid/ready handshaking, backpressure stability, packet integrity, and
+simultaneous independent flows. Complete NoC verification closure is not
+claimed yet: mesh-level same-flow ordering, mesh-level RR contention,
+bounded-service/liveness evidence, and complete invariant/observability
+closure remain under verification.
 
 The immediate project focus is now interview preparation and consolidation
 of the verification evidence. Broader project-wide coverage reporting,
