@@ -58,7 +58,7 @@ The current primary verification scope covers:
 - AXI4 Master v1
 - AXI4 Interconnect v1
 - Cache V2
-- NoC 2×2 mesh
+- NoC Router v1
 
 The AXI4 slave verification scope covers a deliberately constrained
 single-beat AXI4 slave interface, including functional checking,
@@ -115,7 +115,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | AXI4 Master v1 | `rtl/axi4/axi4_master.sv` | Directed self-checking verification + end-to-end Master → Interconnect → real AXI4 slaves | Verified within declared single-beat scope |
 | AXI4 Interconnect v1 | `rtl/interconnect/axi4_interconnect.sv` | Integration smoke + bound SVA + real AXI4 slave targets | ✅ Verified within declared v1 scope |
 | Cache V2 | `rtl/cache_v2.sv` | Directed self-checking verification + memory backpressure + WSTRB + response-stability + alignment checks | ✅ Passed within declared directed scope |
-| NoC 2×2 mesh | `rtl/noc_mesh_2x2.sv` | Router + mesh executable verification + end-to-end routing + backpressure + packet integrity | ✅ Checkpoint passed within declared 2×2 scope |
+| NoC Router v1 | `rtl/noc_router.sv` | Self-checking router verification + deterministic XY routing + valid/ready + backpressure + round-robin arbitration + packet integrity + ordering + invalid-destination checks | ✅ Checkpoint passed within declared router scope |
 
 The status labels intentionally distinguish between:
 
@@ -1111,6 +1111,76 @@ coverage closure, or synthesis/GLS verification for Cache V2.
 
 ---
 
+# NoC Router v1 Verification
+
+The project includes a deliberately scoped NoC Router v1 RTL block and
+self-checking executable verification environment:
+
+```text
+rtl/noc_router.sv
+tests/noc_router_tb.sv
+docs/noc_rtl_interface_contract.md
+docs/noc_verification_plan.md
+docs/noc_verification_requirements.md
+```
+
+The current checkpoint is intentionally scoped to the **router level**.
+It does not claim completion of a 2×2 NoC mesh or end-to-end mesh
+verification.
+
+The router verification contract defines:
+
+* five directional/local input and output interfaces;
+* deterministic XY routing;
+* valid/ready transfer semantics;
+* packet stability under backpressure;
+* round-robin arbitration;
+* per-output arbitration state;
+* pointer advancement only after successful transfer;
+* bounded arbitration service;
+* packet integrity;
+* same-flow ordering;
+* synchronous reset behavior;
+* invalid-destination rejection and per-input error reporting.
+
+The executable router testbench covers:
+
+* reset and state clearing;
+* deterministic routing decisions;
+* local delivery;
+* directional routing;
+* contention and round-robin selection;
+* output backpressure and packet stability;
+* same-flow ordering;
+* packet integrity;
+* invalid destinations across all five inputs;
+* independent simultaneous invalid-destination errors;
+* bounded arbitration behavior.
+
+The **NOC-REQ-017** checkpoint exercises three legal contenders in the
+declared 2×2 topology and verifies service within the tight three-
+opportunity case. The contract retains a conservative four-opportunity
+bound for the declared verification scope.
+
+Observed checkpoint result:
+
+```text
+NOC-REQ-017 bounded arbitration: PASS
+NoC router functional smoke test: PASS
+```
+
+The interface contract is frozen in:
+
+```text
+docs/noc_rtl_interface_contract.md
+```
+
+This checkpoint is **router-level verification evidence**. It does not
+claim completed 2×2 mesh RTL, end-to-end multi-hop mesh verification,
+or full NoC verification closure. Those remain future scope.
+
+---
+
 # MMU Verification
 
 ## RTL
@@ -1567,7 +1637,7 @@ project-wide closure.
 | AXI4 reachable functional coverage | ✅ Closed | 218/218 reachable bins; 2 unreachable response bins |
 | AXI4 Interconnect v1 verification | ✅ Passed | 1 master → 2 slaves, routing, ID/request association, boundary and unmapped-address checks, protocol-stability SVA |
 | Cache V2 directed verification | ✅ Passed | 48 PASS records, 0 FAIL records, WSTRB, response stability, memory backpressure, alignment checks |
-| NoC 2×2 mesh verification checkpoint | ✅ Passed | 2×2 mesh, end-to-end routing, multi-hop paths, valid/ready, backpressure stability, packet integrity, simultaneous independent flows |
+| NoC Router v1 verification checkpoint | ✅ Passed | Deterministic XY routing, valid/ready, backpressure stability, round-robin arbitration, bounded service, packet integrity, ordering, invalid-destination handling |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification | ✅ Partial | ALU 4/4, FPU MUL/DIV invariants PASS |
 | Unified CI regression | 🟡 In progress | Local regression exists |
@@ -1599,7 +1669,7 @@ Completed and near-term activities:
 * AXI4 handshake stress verification ✅
 * AXI4 reachable functional coverage closure ✅
 * Cache V2 directed verification checkpoint ✅
-* NoC 2×2 mesh implementation + verification checkpoint ✅
+* NoC Router v1 verification checkpoint ✅
 
 ## Phase 2 — Bus and Interconnect Verification
 
@@ -1688,6 +1758,7 @@ riscv_cpu_project/
 │   ├── mmu.sv
 │   ├── register_file.sv
 │   ├── cache_v2.sv
+│   ├── noc_router.sv
 │   ├── axi4/
 │   │   ├── axi4_slave.sv
 │   │   └── axi4_master.sv
@@ -1713,6 +1784,7 @@ riscv_cpu_project/
 │   ├── axi4_master_tb.sv
 │   ├── axi4_master_interconnect_tb.sv
 │   ├── cache_v2_tb.sv
+│   ├── noc_router_tb.sv
 │   ├── reference/
 │   │   ├── generate_fpu_vectors.py
 │   │   ├── generate_fpu_differential_vectors.py
@@ -1783,6 +1855,9 @@ riscv_cpu_project/
 │   ├── cpu_exec_verification_summary.md
 │   ├── cpu_exec_formal_verification.md
 │   ├── CPU_VERIFICATION_SIGNOFF.md
+│   ├── noc_rtl_interface_contract.md
+│   ├── noc_verification_requirements.md
+│   ├── noc_verification_plan.md
 │   ├── cache_verification_requirements.md
 │   └── cache_verification_plan.md
 │
@@ -1857,14 +1932,17 @@ The current focus includes:
 
 * AXI4 Interconnect v1 verification checkpoint ✅
 * Cache V2 directed verification checkpoint ✅
-* NoC 2×2 mesh implementation + verification checkpoint ✅
+* NoC Router v1 verification checkpoint ✅
 
 The AXI4 Interconnect v1 and Cache V2 checkpoints are complete within
-their declared scopes. The NoC checkpoint covers the 2×2 mesh RTL,
-router/mesh executable verification, end-to-end routing, multi-hop paths,
-valid/ready handshaking, backpressure stability, packet integrity, and
-simultaneous independent flows. Complete NoC verification closure is not
-claimed yet: mesh-level same-flow ordering, mesh-level RR contention,
+their declared scopes. The NoC Router v1 checkpoint covers deterministic
+XY routing, valid/ready handshaking, backpressure stability,
+round-robin arbitration, bounded service, packet integrity, ordering,
+reset, and invalid-destination handling. The NoC interface contract is
+frozen and NOC-REQ-017 provides executable bounded-arbitration evidence.
+This is router-level verification evidence; a completed 2×2 mesh,
+end-to-end multi-hop verification, and full NoC verification closure
+remain future scope. Mesh-level same-flow ordering, mesh-level RR contention,
 bounded-service/liveness evidence, and complete invariant/observability
 closure remain under verification.
 
