@@ -560,6 +560,120 @@ module noc_mesh_2x2_tb;
     endtask
 
     // ------------------------------------------------------------
+    // Independent NoC route reference
+    //
+    // Verification-only model.  It does not call or duplicate the
+    // DUT's calc_route() implementation.
+    //
+    // Direction encoding is local to this testbench:
+    //   0 = LOCAL
+    //   1 = NORTH
+    //   2 = SOUTH
+    //   3 = EAST
+    //   4 = WEST
+    // ------------------------------------------------------------
+
+    localparam integer REF_LOCAL = 0;
+    localparam integer REF_NORTH = 1;
+    localparam integer REF_SOUTH = 2;
+    localparam integer REF_EAST  = 3;
+    localparam integer REF_WEST  = 4;
+
+    function automatic integer ref_dst_x(input logic [2:0] dst_id);
+        begin
+            case (dst_id)
+                3'd0: ref_dst_x = 0;
+                3'd1: ref_dst_x = 1;
+                3'd2: ref_dst_x = 0;
+                3'd3: ref_dst_x = 1;
+                default: ref_dst_x = -1;
+            endcase
+        end
+    endfunction
+
+    function automatic integer ref_dst_y(input logic [2:0] dst_id);
+        begin
+            case (dst_id)
+                3'd0: ref_dst_y = 0;
+                3'd1: ref_dst_y = 0;
+                3'd2: ref_dst_y = 1;
+                3'd3: ref_dst_y = 1;
+                default: ref_dst_y = -1;
+            endcase
+        end
+    endfunction
+
+    function automatic integer ref_xy_direction(
+        input logic [2:0] dst_id,
+        input integer current_x,
+        input integer current_y
+    );
+        integer dst_x;
+        integer dst_y;
+        begin
+            dst_x = ref_dst_x(dst_id);
+            dst_y = ref_dst_y(dst_id);
+
+            if (dst_x < 0 || dst_y < 0) begin
+                ref_xy_direction = -1;
+            end
+            else if (current_x < dst_x) begin
+                ref_xy_direction = REF_EAST;
+            end
+            else if (current_x > dst_x) begin
+                ref_xy_direction = REF_WEST;
+            end
+            else if (current_y < dst_y) begin
+                ref_xy_direction = REF_SOUTH;
+            end
+            else if (current_y > dst_y) begin
+                ref_xy_direction = REF_NORTH;
+            end
+            else begin
+                ref_xy_direction = REF_LOCAL;
+            end
+        end
+    endfunction
+
+    task automatic check_route_observation(
+        input noc_packet_t packet,
+        input integer current_x,
+        input integer current_y,
+        input integer observed_direction,
+        input string observation_name
+    );
+        integer expected_direction;
+        begin
+            expected_direction = ref_xy_direction(
+                packet.dst_id,
+                current_x,
+                current_y
+            );
+
+            if (expected_direction !== observed_direction) begin
+                $display(
+                    "FAIL: route reference mismatch: %s",
+                    observation_name
+                );
+                $display(
+                    "      src=%0d dst=%0d txn=%0d",
+                    packet.src_id,
+                    packet.dst_id,
+                    packet.txn_id
+                );
+                $display(
+                    "      router=(%0d,%0d) expected_dir=%0d observed_dir=%0d",
+                    current_x,
+                    current_y,
+                    expected_direction,
+                    observed_direction
+                );
+                $fatal(1);
+            end
+        end
+    endtask
+
+    // ------------------------------------------------------------
     // Mesh hotspot contention + intermediate-link backpressure
     //
     // Three independent sources target the same destination:
@@ -668,6 +782,15 @@ module noc_mesh_2x2_tb;
 
                 // R01 -> R11 intermediate link.
                 if (dut.r01_south_out_valid === 1'b1) begin
+
+                    check_route_observation(
+                        dut.r01_south_out_packet,
+                        1,
+                        0,
+                        REF_SOUTH,
+                        "R01 -> R11"
+                    );
+
                     if (dut.r01_south_out_ready === 1'b0) begin
                         observed_r01_backpressure = 1'b1;
                     end
@@ -675,6 +798,15 @@ module noc_mesh_2x2_tb;
 
                 // R10 -> R11 intermediate link.
                 if (dut.r10_east_out_valid === 1'b1) begin
+
+                    check_route_observation(
+                        dut.r10_east_out_packet,
+                        0,
+                        1,
+                        REF_EAST,
+                        "R10 -> R11"
+                    );
+
                     if (dut.r10_east_out_ready === 1'b0) begin
                         observed_r10_backpressure = 1'b1;
                     end
@@ -702,6 +834,14 @@ module noc_mesh_2x2_tb;
                 dut.r01_south_out_ready === 1'b0) begin
 
                 held_r01_south_packet = dut.r01_south_out_packet;
+
+                check_route_observation(
+                    held_r01_south_packet,
+                    1,
+                    0,
+                    REF_SOUTH,
+                    "R01 -> R11 held packet"
+                );
 
                 repeat (2) begin
                     @(posedge clk);
@@ -735,6 +875,14 @@ module noc_mesh_2x2_tb;
                 dut.r10_east_out_ready === 1'b0) begin
 
                 held_r10_east_packet = dut.r10_east_out_packet;
+
+                check_route_observation(
+                    held_r10_east_packet,
+                    0,
+                    1,
+                    REF_EAST,
+                    "R10 -> R11 held packet"
+                );
 
                 repeat (2) begin
                     @(posedge clk);
@@ -806,6 +954,14 @@ module noc_mesh_2x2_tb;
                     ep3_out_ready === 1'b1) begin
 
                     ep3_count = ep3_count + 1;
+
+                    check_route_observation(
+                        ep3_out_packet,
+                        1,
+                        1,
+                        REF_LOCAL,
+                        "R11 -> EP3 LOCAL termination"
+                    );
 
                     if (ep3_out_packet.txn_id === pkt_ep0_ep3.txn_id) begin
                         if (seen_txn8) begin
