@@ -143,23 +143,23 @@ No production-level deadlock-freedom or arbitrary-traffic liveness claim is made
 
 | ID | Requirement | Verification Method | Status |
 |---|---|---|---|
-| NOC-REQ-001 | 2×2 mesh topology shall contain four routers with defined connectivity. | Structural / Integration | PENDING |
-| NOC-REQ-002 | Endpoints shall have deterministic source and destination addressing. | Directed / Scoreboard | PENDING |
-| NOC-REQ-003 | The NoC shall implement deterministic XY routing within the declared topology. | Directed / Reference Model | PENDING |
-| NOC-REQ-004 | Packet/flit transfer shall use a defined valid/ready handshake. | Directed / SVA | PENDING |
-| NOC-REQ-005 | Packets addressed to a locally attached endpoint shall be delivered correctly. | Directed / Scoreboard | PENDING |
-| NOC-REQ-006 | One-hop packets shall be routed to the correct output. | Directed / Scoreboard | PENDING |
-| NOC-REQ-007 | Multi-hop packets shall traverse the correct router sequence. | Directed / Scoreboard | PENDING |
-| NOC-REQ-008 | Contending traffic shall be arbitrated according to the declared arbitration policy. | Directed / Constrained-Random | PENDING |
-| NOC-REQ-009 | Backpressure shall prevent illegal packet/flit transfer when the downstream interface is not ready. | Stress / SVA | PENDING |
-| NOC-REQ-010 | Packet source, destination, payload, and transaction identity shall be preserved through routing. | Scoreboard | PENDING |
-| NOC-REQ-011 | Legal traffic shall not result in packet duplication or packet loss. | Scoreboard / Stress | PENDING |
-| NOC-REQ-012 | Ordering shall be preserved within the declared v1 traffic scope. | Scoreboard | PENDING |
-| NOC-REQ-013 | Invalid or unreachable destinations shall produce the defined error behavior. | Directed | PENDING |
+| NOC-REQ-001 | 2×2 mesh topology shall contain four routers with defined connectivity. | Structural / Integration | VERIFIED |
+| NOC-REQ-002 | Endpoints shall have deterministic source and destination addressing. | Directed / Scoreboard | VERIFIED |
+| NOC-REQ-003 | The NoC shall implement deterministic XY routing within the declared topology. | Directed / Reference Model | PARTIAL |
+| NOC-REQ-004 | Packet/flit transfer shall use a defined valid/ready handshake. | Directed / SVA | PARTIAL |
+| NOC-REQ-005 | Packets addressed to a locally attached endpoint shall be delivered correctly. | Directed / Scoreboard | VERIFIED |
+| NOC-REQ-006 | One-hop packets shall be routed to the correct output. | Directed / Scoreboard | VERIFIED |
+| NOC-REQ-007 | Multi-hop packets shall traverse the correct router sequence. | Directed / Scoreboard | PARTIAL |
+| NOC-REQ-008 | Contending traffic shall be arbitrated according to the declared arbitration policy. | Directed / Constrained-Random | PARTIAL |
+| NOC-REQ-009 | Backpressure shall prevent illegal packet/flit transfer when the downstream interface is not ready. | Stress / SVA | PARTIAL |
+| NOC-REQ-010 | Packet source, destination, payload, and transaction identity shall be preserved through routing. | Scoreboard | VERIFIED |
+| NOC-REQ-011 | Legal traffic shall not result in packet duplication or packet loss. | Scoreboard / Stress | VERIFIED |
+| NOC-REQ-012 | Ordering shall be preserved within the declared v1 traffic scope. | Scoreboard | VERIFIED |
+| NOC-REQ-013 | Invalid or unreachable destinations shall produce the defined error behavior. | Directed | VERIFIED |
 | NOC-REQ-014 | Mandatory routing, handshake, arbitration, and stability properties shall be asserted. | SVA | PENDING |
 | NOC-REQ-015 | Functional coverage shall cover routing, destinations, contention, and backpressure scenarios. | Functional Coverage | PENDING |
-| NOC-REQ-016 | The complete NoC v1 verification regression shall pass without mandatory failures. | Regression | PENDING |
-| NOC-REQ-017 | Under the declared arbitration assumptions, a continuously requesting contender shall receive service within four arbitration opportunities, and v1 shall not create a cyclic wait condition under deterministic XY routing. | Directed / Constrained-Random / SVA | PENDING |
+| NOC-REQ-016 | The complete NoC v1 verification regression shall pass without mandatory failures. | Regression | VERIFIED |
+| NOC-REQ-017 | Under the declared arbitration assumptions, a continuously requesting contender shall receive service within four arbitration opportunities, and v1 shall not create a cyclic wait condition under deterministic XY routing. | Directed / Constrained-Random / SVA | PARTIAL |
 
 ## Closure Criteria
 
