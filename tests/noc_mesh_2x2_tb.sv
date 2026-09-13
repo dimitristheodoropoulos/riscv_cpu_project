@@ -1493,7 +1493,7 @@ module noc_mesh_2x2_tb;
         test_parallel_independent_flows();
 
         // Existing parallel-flow scenario completed successfully.
-        cov_sample_contention(2);
+        // Independent flows do not constitute two-way contention.
 
         test_complete_endpoint_traffic_matrix();
 
