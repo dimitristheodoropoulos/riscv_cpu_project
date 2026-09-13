@@ -1223,6 +1223,61 @@ PASS: hotspot packet integrity preserved under backpressure
 PASS: NoC 2x2 basic end-to-end datapath test completed
 ```
 
+The same executable checkpoint reports the following verification
+scenario coverage:
+
+```text
+COV-01 source x destination : 16/16
+COV-02 route class           : 3/3
+COV-03 first-hop direction   : 5/5
+COV-04 contention            : 3/3
+COV-05 backpressure          : 3/3
+COV-06 intermediate links    : 2/2
+```
+
+The 4×4 endpoint matrix is exercised by completed transactions, with each
+source/destination bin observed once:
+
+```text
+EP0: [1 1 1 1]
+EP1: [1 1 1 1]
+EP2: [1 1 1 1]
+EP3: [1 1 1 1]
+```
+
+The resulting route classification is:
+
+```text
+LOCAL=4 ONE_HOP=8 TWO_HOP=4
+```
+
+and first-hop direction coverage is:
+
+```text
+LOCAL=4 NORTH=2 SOUTH=2 EAST=4 WEST=4
+```
+
+Contention and backpressure scenario coverage is:
+
+```text
+Contention:   NONE=1 TWO_WAY=1 THREE_WAY=1
+Backpressure: NONE=1 ENDPOINT=1 INTERMEDIATE=1
+```
+
+Intermediate-link coverage records both declared links:
+
+```text
+R01_R11=1
+R10_R11=1
+```
+
+The mesh functional coverage is implemented as executable verification
+scenario/bin accounting because native SystemVerilog covergroup support is
+not available in the selected free simulator environment. The coverage
+samples are tied to completed existing verification scenarios; no
+additional stimulus was introduced solely to increase coverage. The
+intermediate-link bins additionally use observed valid/ready transfers.
+
 This is a **functional 2×2 mesh checkpoint within the declared scope**.
 It does not claim exhaustive NoC verification, formal invariant closure,
 full liveness verification, or project-wide coverage closure.
