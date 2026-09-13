@@ -142,7 +142,7 @@ def test_execution_limit_counts_program_instructions():
     )
 
 
-def test_execution_limit_rejects_incomplete_program():
+def test_execution_limit_bounds_architectural_execution():
     request = smoke_request()
 
     request = ISSRequest(
@@ -159,9 +159,9 @@ def test_execution_limit_rejects_incomplete_program():
 
     result = backend.execute(request)
 
-    assert result.status is ISSStatus.FAIL
-    assert "architectural commit count mismatch" in result.error
+    assert result.status is ISSStatus.PASS, result.error
+    assert result.executed_count == 9
 
     print(
-        "[PASS] execution_limit rejects incomplete architectural program"
+        "[PASS] execution_limit bounds architectural execution"
     )

@@ -31,9 +31,14 @@ def test_deliberate_architectural_value_mismatch_is_localized(tmp_path):
 
     corrupted_trace = list(original_trace)
 
-    target = corrupted_trace[1]
+    target_index = next(
+        index
+        for index, commit in enumerate(corrupted_trace)
+        if commit.rd_valid
+    )
+    target = corrupted_trace[target_index]
 
-    corrupted_trace[1] = ISSCommit(
+    corrupted_trace[target_index] = ISSCommit(
         pc=target.pc,
         instruction=target.instruction,
         rd_valid=target.rd_valid,
@@ -51,9 +56,9 @@ def test_deliberate_architectural_value_mismatch_is_localized(tmp_path):
 
     mismatch = result.mismatches[0]
 
-    assert mismatch.commit_index == 1
+    assert mismatch.commit_index == target_index
     assert mismatch.field == "value"
-    assert mismatch.expected == original_trace[1].value
+    assert mismatch.expected == original_trace[target_index].value
     assert mismatch.observed == CORRUPTED_VALUE
 
 
