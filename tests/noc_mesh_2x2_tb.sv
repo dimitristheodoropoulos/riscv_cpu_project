@@ -552,6 +552,10 @@ module noc_mesh_2x2_tb;
                         txn[3:0]
                     );
                     txn = txn + 1;
+
+                    // Record coverage only after the existing transaction
+                    // has completed successfully.
+                    cov_sample_route(src_ep, dst_ep);
                 end
             end
 
@@ -765,6 +769,19 @@ module noc_mesh_2x2_tb;
 
 
 
+            // Capture any intermediate-link handshake that is already
+            // visible immediately after the three local inputs are accepted.
+            // Coverage represents a real valid/ready transfer only.
+            if (dut.r01_south_out_valid === 1'b1 &&
+                dut.r01_south_out_ready === 1'b1) begin
+                cov_sample_intermediate_link(0);
+            end
+
+            if (dut.r10_east_out_valid === 1'b1 &&
+                dut.r10_east_out_ready === 1'b1) begin
+                cov_sample_intermediate_link(1);
+            end
+
             // EP3 must remain stalled while the three contenders
             // propagate toward R11.
             repeat (6) begin
@@ -783,6 +800,10 @@ module noc_mesh_2x2_tb;
                 // R01 -> R11 intermediate link.
                 if (dut.r01_south_out_valid === 1'b1) begin
 
+                    if (dut.r01_south_out_ready === 1'b1) begin
+                          cov_sample_intermediate_link(0);
+                    end
+
                     check_route_observation(
                         dut.r01_south_out_packet,
                         1,
@@ -796,8 +817,10 @@ module noc_mesh_2x2_tb;
                     end
                 end
 
-                // R10 -> R11 intermediate link.
+
+            // R10 -> R11 intermediate link.
                 if (dut.r10_east_out_valid === 1'b1) begin
+
 
                     check_route_observation(
                         dut.r10_east_out_packet,
@@ -809,6 +832,15 @@ module noc_mesh_2x2_tb;
 
                     if (dut.r10_east_out_ready === 1'b0) begin
                         observed_r10_backpressure = 1'b1;
+                    end
+
+
+                    if (dut.r10_east_out_ready === 1'b1) begin
+
+
+                        cov_sample_intermediate_link(1);
+
+
                     end
                 end
             end
@@ -1048,11 +1080,385 @@ module noc_mesh_2x2_tb;
         end
     endtask
 
+
+    // ------------------------------------------------------------
+    // Verification-only functional coverage accounting
+    //
+    // Existing stimulus only. No new stimulus and no DUT changes.
+    // ------------------------------------------------------------
+
+    integer cov_src_dst [0:3][0:3];
+
+    integer cov_route_local;
+    integer cov_route_one_hop;
+    integer cov_route_two_hop;
+
+    integer cov_dir_local;
+    integer cov_dir_north;
+    integer cov_dir_south;
+    integer cov_dir_east;
+    integer cov_dir_west;
+
+    integer cov_contention_none;
+    integer cov_contention_two;
+    integer cov_contention_three;
+
+    integer cov_bp_none;
+    integer cov_bp_endpoint;
+    integer cov_bp_intermediate;
+
+    integer cov_link_r01_r11;
+    integer cov_link_r10_r11;
+
+    task automatic cov_init;
+        integer src_ep;
+        integer dst_ep;
+        begin
+            for (src_ep = 0; src_ep < 4; src_ep = src_ep + 1) begin
+                for (dst_ep = 0; dst_ep < 4; dst_ep = dst_ep + 1) begin
+                    cov_src_dst[src_ep][dst_ep] = 0;
+                end
+            end
+
+            cov_route_local = 0;
+            cov_route_one_hop = 0;
+            cov_route_two_hop = 0;
+
+            cov_dir_local = 0;
+            cov_dir_north = 0;
+            cov_dir_south = 0;
+            cov_dir_east = 0;
+            cov_dir_west = 0;
+
+            cov_contention_none = 0;
+            cov_contention_two = 0;
+            cov_contention_three = 0;
+
+            cov_bp_none = 0;
+            cov_bp_endpoint = 0;
+            cov_bp_intermediate = 0;
+
+            cov_link_r01_r11 = 0;
+            cov_link_r10_r11 = 0;
+        end
+    endtask
+
+    function automatic integer cov_ep_x(input integer ep);
+        begin
+            case (ep)
+                0: cov_ep_x = 0;
+                1: cov_ep_x = 1;
+                2: cov_ep_x = 0;
+                3: cov_ep_x = 1;
+                default: cov_ep_x = -1;
+            endcase
+        end
+    endfunction
+
+    function automatic integer cov_ep_y(input integer ep);
+        begin
+            case (ep)
+                0: cov_ep_y = 0;
+                1: cov_ep_y = 0;
+                2: cov_ep_y = 1;
+                3: cov_ep_y = 1;
+                default: cov_ep_y = -1;
+            endcase
+        end
+    endfunction
+
+    function automatic integer cov_hops(
+        input integer src_ep,
+        input integer dst_ep
+    );
+        integer dx;
+        integer dy;
+        begin
+            dx = cov_ep_x(dst_ep) - cov_ep_x(src_ep);
+            dy = cov_ep_y(dst_ep) - cov_ep_y(src_ep);
+
+            if (dx < 0)
+                dx = -dx;
+
+            if (dy < 0)
+                dy = -dy;
+
+            cov_hops = dx + dy;
+        end
+    endfunction
+
+    task automatic cov_sample_route(
+        input integer src_ep,
+        input integer dst_ep
+    );
+        integer hops;
+        integer sx;
+        integer sy;
+        integer dx;
+        integer dy;
+        begin
+            if (src_ep < 0 || src_ep > 3 ||
+                dst_ep < 0 || dst_ep > 3) begin
+                $display(
+                    "FAIL: invalid functional coverage endpoint pair %0d -> %0d",
+                    src_ep,
+                    dst_ep
+                );
+                $fatal(1);
+            end
+
+            cov_src_dst[src_ep][dst_ep] =
+                cov_src_dst[src_ep][dst_ep] + 1;
+
+            hops = cov_hops(src_ep, dst_ep);
+
+            case (hops)
+                0: cov_route_local = cov_route_local + 1;
+                1: cov_route_one_hop = cov_route_one_hop + 1;
+                2: cov_route_two_hop = cov_route_two_hop + 1;
+                default: begin
+                    $display(
+                        "FAIL: unexpected route hop count %0d for EP%0d -> EP%0d",
+                        hops,
+                        src_ep,
+                        dst_ep
+                    );
+                    $fatal(1);
+                end
+            endcase
+
+            sx = cov_ep_x(src_ep);
+            sy = cov_ep_y(src_ep);
+            dx = cov_ep_x(dst_ep);
+            dy = cov_ep_y(dst_ep);
+
+            if (hops == 0) begin
+                cov_dir_local = cov_dir_local + 1;
+            end
+            else if (sx < dx) begin
+                cov_dir_east = cov_dir_east + 1;
+            end
+            else if (sx > dx) begin
+                cov_dir_west = cov_dir_west + 1;
+            end
+            else if (sy < dy) begin
+                cov_dir_south = cov_dir_south + 1;
+            end
+            else if (sy > dy) begin
+                cov_dir_north = cov_dir_north + 1;
+            end
+        end
+    endtask
+
+    task automatic cov_sample_contention(
+        input integer contenders
+    );
+        begin
+            case (contenders)
+                1: cov_contention_none = cov_contention_none + 1;
+                2: cov_contention_two = cov_contention_two + 1;
+                3: cov_contention_three = cov_contention_three + 1;
+                default: begin
+                    $display(
+                        "FAIL: unsupported contention coverage value %0d",
+                        contenders
+                    );
+                    $fatal(1);
+                end
+            endcase
+        end
+    endtask
+
+    task automatic cov_sample_backpressure(
+        input integer kind
+    );
+        begin
+            case (kind)
+                0: cov_bp_none = cov_bp_none + 1;
+                1: cov_bp_endpoint = cov_bp_endpoint + 1;
+                2: cov_bp_intermediate = cov_bp_intermediate + 1;
+                default: begin
+                    $display(
+                        "FAIL: unsupported backpressure coverage value %0d",
+                        kind
+                    );
+                    $fatal(1);
+                end
+            endcase
+        end
+    endtask
+
+    task automatic cov_sample_intermediate_link(
+        input integer link_id
+    );
+        begin
+            case (link_id)
+                0: cov_link_r01_r11 = cov_link_r01_r11 + 1;
+                1: cov_link_r10_r11 = cov_link_r10_r11 + 1;
+                default: begin
+                    $display(
+                        "FAIL: unsupported intermediate-link coverage value %0d",
+                        link_id
+                    );
+                    $fatal(1);
+                end
+            endcase
+        end
+    endtask
+
+    task automatic report_noc_functional_coverage;
+        integer src_ep;
+        integer dst_ep;
+        integer src_dst_bins;
+        integer route_bins;
+        integer direction_bins;
+        integer contention_bins;
+        integer backpressure_bins;
+        integer link_bins;
+        begin
+            src_dst_bins = 0;
+            for (src_ep = 0; src_ep < 4; src_ep = src_ep + 1) begin
+                for (dst_ep = 0; dst_ep < 4; dst_ep = dst_ep + 1) begin
+                    if (cov_src_dst[src_ep][dst_ep] > 0)
+                        src_dst_bins = src_dst_bins + 1;
+                end
+            end
+
+            route_bins = 0;
+            if (cov_route_local > 0)
+                route_bins = route_bins + 1;
+            if (cov_route_one_hop > 0)
+                route_bins = route_bins + 1;
+            if (cov_route_two_hop > 0)
+                route_bins = route_bins + 1;
+
+            direction_bins = 0;
+            if (cov_dir_local > 0)
+                direction_bins = direction_bins + 1;
+            if (cov_dir_north > 0)
+                direction_bins = direction_bins + 1;
+            if (cov_dir_south > 0)
+                direction_bins = direction_bins + 1;
+            if (cov_dir_east > 0)
+                direction_bins = direction_bins + 1;
+            if (cov_dir_west > 0)
+                direction_bins = direction_bins + 1;
+
+            contention_bins = 0;
+            if (cov_contention_none > 0)
+                contention_bins = contention_bins + 1;
+            if (cov_contention_two > 0)
+                contention_bins = contention_bins + 1;
+            if (cov_contention_three > 0)
+                contention_bins = contention_bins + 1;
+
+            backpressure_bins = 0;
+            if (cov_bp_none > 0)
+                backpressure_bins = backpressure_bins + 1;
+            if (cov_bp_endpoint > 0)
+                backpressure_bins = backpressure_bins + 1;
+            if (cov_bp_intermediate > 0)
+                backpressure_bins = backpressure_bins + 1;
+
+            link_bins = 0;
+            if (cov_link_r01_r11 > 0)
+                link_bins = link_bins + 1;
+            if (cov_link_r10_r11 > 0)
+                link_bins = link_bins + 1;
+
+            $display("");
+            $display("========================================");
+            $display("NOC FUNCTIONAL COVERAGE");
+            $display("========================================");
+
+            $display(
+                "COV-01 source x destination : %0d/16",
+                src_dst_bins
+            );
+            $display(
+                "COV-02 route class           : %0d/3",
+                route_bins
+            );
+            $display(
+                "COV-03 first-hop direction   : %0d/5",
+                direction_bins
+            );
+            $display(
+                "COV-04 contention            : %0d/3",
+                contention_bins
+            );
+            $display(
+                "COV-05 backpressure          : %0d/3",
+                backpressure_bins
+            );
+            $display(
+                "COV-06 intermediate links    : %0d/2",
+                link_bins
+            );
+
+            $display("");
+            $display("Source x Destination bins:");
+
+            for (src_ep = 0; src_ep < 4; src_ep = src_ep + 1) begin
+                $display(
+                    "  EP%0d: [%0d %0d %0d %0d]",
+                    src_ep,
+                    cov_src_dst[src_ep][0],
+                    cov_src_dst[src_ep][1],
+                    cov_src_dst[src_ep][2],
+                    cov_src_dst[src_ep][3]
+                );
+            end
+
+            $display("");
+            $display(
+                "Route class counts: LOCAL=%0d ONE_HOP=%0d TWO_HOP=%0d",
+                cov_route_local,
+                cov_route_one_hop,
+                cov_route_two_hop
+            );
+
+            $display(
+                "First-hop direction counts: LOCAL=%0d NORTH=%0d SOUTH=%0d EAST=%0d WEST=%0d",
+                cov_dir_local,
+                cov_dir_north,
+                cov_dir_south,
+                cov_dir_east,
+                cov_dir_west
+            );
+
+            $display(
+                "Contention counts: NONE=%0d TWO_WAY=%0d THREE_WAY=%0d",
+                cov_contention_none,
+                cov_contention_two,
+                cov_contention_three
+            );
+
+            $display(
+                "Backpressure counts: NONE=%0d ENDPOINT=%0d INTERMEDIATE=%0d",
+                cov_bp_none,
+                cov_bp_endpoint,
+                cov_bp_intermediate
+            );
+
+            $display(
+                "Intermediate-link counts: R01_R11=%0d R10_R11=%0d",
+                cov_link_r01_r11,
+                cov_link_r10_r11
+            );
+
+            $display("========================================");
+            $display("END NOC FUNCTIONAL COVERAGE");
+            $display("========================================");
+        end
+    endtask
+
     // ------------------------------------------------------------
     // Test
     // ------------------------------------------------------------
 
     initial begin
+        cov_init();
         clear_inputs();
 
         ep0_out_ready = 1'b1;
@@ -1075,12 +1481,31 @@ module noc_mesh_2x2_tb;
         send_ep0_to_ep3();
         send_ep3_to_ep0();
 
+        // Existing normal traffic completed successfully.
+        cov_sample_contention(1);
+        cov_sample_backpressure(0);
+
         test_ep0_to_ep3_backpressure();
+
+        // Existing endpoint-backpressure scenario completed successfully.
+        cov_sample_backpressure(1);
+
         test_parallel_independent_flows();
+
+        // Existing parallel-flow scenario completed successfully.
+        cov_sample_contention(2);
+
         test_complete_endpoint_traffic_matrix();
+
         test_three_way_hotspot_backpressure();
 
+        // Existing hotspot scenario completed successfully.
+        cov_sample_contention(3);
+        cov_sample_backpressure(2);
+
         $display("");
+        report_noc_functional_coverage();
+
         $display("PASS: NoC 2x2 basic end-to-end datapath test completed");
         $finish;
     end
