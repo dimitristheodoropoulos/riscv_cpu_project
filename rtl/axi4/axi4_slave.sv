@@ -1,6 +1,8 @@
 `ifndef AXI4_SLAVE_SV
 `define AXI4_SLAVE_SV
 
+`timescale 1ns/1ps
+
 module axi4_slave #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
@@ -56,7 +58,8 @@ module axi4_slave #(
     input  logic                     s_axi_rready
 );
 
-    localparam STRB_WIDTH = DATA_WIDTH / 8;
+    localparam STRB_WIDTH    = DATA_WIDTH / 8;
+    localparam MEM_ADDR_WIDTH = $clog2(MEM_DEPTH);
 
     // ------------------------------------------------------------
     // Simple internal memory
@@ -158,19 +161,19 @@ module axi4_slave #(
             if (s_axi_wvalid && s_axi_wready) begin
 
                 if (s_axi_wstrb[0])
-                    mem[awaddr_reg[ADDR_WIDTH-1:2]]
+                    mem[awaddr_reg[MEM_ADDR_WIDTH+1:2]]
                         [7:0] <= s_axi_wdata[7:0];
 
                 if (STRB_WIDTH > 1 && s_axi_wstrb[1])
-                    mem[awaddr_reg[ADDR_WIDTH-1:2]]
+                    mem[awaddr_reg[MEM_ADDR_WIDTH+1:2]]
                         [15:8] <= s_axi_wdata[15:8];
 
                 if (STRB_WIDTH > 2 && s_axi_wstrb[2])
-                    mem[awaddr_reg[ADDR_WIDTH-1:2]]
+                    mem[awaddr_reg[MEM_ADDR_WIDTH+1:2]]
                         [23:16] <= s_axi_wdata[23:16];
 
                 if (STRB_WIDTH > 3 && s_axi_wstrb[3])
-                    mem[awaddr_reg[ADDR_WIDTH-1:2]]
+                    mem[awaddr_reg[MEM_ADDR_WIDTH+1:2]]
                         [31:24] <= s_axi_wdata[31:24];
 
                 aw_pending  <= 1'b0;
@@ -191,7 +194,7 @@ module axi4_slave #(
                 araddr_reg <= s_axi_araddr;
 
                 s_axi_rid   <= s_axi_arid;
-                s_axi_rdata <= mem[s_axi_araddr[ADDR_WIDTH-1:2]];
+                s_axi_rdata <= mem[s_axi_araddr[MEM_ADDR_WIDTH+1:2]];
                 s_axi_rresp <= 2'b00;        // OKAY
                 s_axi_rlast <= 1'b1;
                 s_axi_rvalid <= 1'b1;

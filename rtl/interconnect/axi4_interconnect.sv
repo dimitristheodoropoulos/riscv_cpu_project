@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module axi4_interconnect #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
@@ -138,14 +140,12 @@ module axi4_interconnect #(
     logic ar_hit_s0;
     logic ar_hit_s1;
 
-    assign aw_hit_s0 = (m_axi_awaddr >= S0_BASE) &&
-                       (m_axi_awaddr <= S0_END);
+    assign aw_hit_s0 = (m_axi_awaddr <= S0_END);
 
     assign aw_hit_s1 = (m_axi_awaddr >= S1_BASE) &&
                        (m_axi_awaddr <= S1_END);
 
-    assign ar_hit_s0 = (m_axi_araddr >= S0_BASE) &&
-                       (m_axi_araddr <= S0_END);
+    assign ar_hit_s0 = (m_axi_araddr <= S0_END);
 
     assign ar_hit_s1 = (m_axi_araddr >= S1_BASE) &&
                        (m_axi_araddr <= S1_END);

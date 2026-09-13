@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module axi4_interconnect_sva #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
