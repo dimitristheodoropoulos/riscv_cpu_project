@@ -420,6 +420,7 @@ module noc_router_tb;
               "LOCAL payload preserved");
 
         @(posedge clk);
+        #1;
 
         /*
          * EAST routing
@@ -440,6 +441,7 @@ module noc_router_tb;
               "EAST payload preserved");
 
         @(posedge clk);
+        #1;
 
         /*
          * SOUTH routing
@@ -456,6 +458,7 @@ module noc_router_tb;
               "SOUTH destination preserved");
 
         @(posedge clk);
+        #1;
 
         /*
          * EAST from router X=0,Y=0 also covers destination (1,1):
@@ -471,6 +474,7 @@ module noc_router_tb;
         check(east_out_valid, "destination (1,1) routes EAST first");
 
         @(posedge clk);
+        #1;
 
         /*
          * Invalid destination from LOCAL input.
