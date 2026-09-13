@@ -1121,6 +1121,7 @@ self-checking executable verification environment:
 ```text
 rtl/noc_router.sv
 tests/noc_router_tb.sv
+sva/noc_router_sva.sv
 docs/noc_rtl_interface_contract.md
 docs/noc_verification_plan.md
 docs/noc_verification_requirements.md
@@ -1152,6 +1153,7 @@ The executable router testbench covers:
 * local delivery;
 * directional routing;
 * contention and round-robin selection;
+* RR post-service pointer transition checking with SVA;
 * output backpressure and packet stability;
 * same-flow ordering;
 * packet integrity;
@@ -1169,6 +1171,8 @@ Observed checkpoint result:
 ```text
 NOC-REQ-017 bounded arbitration: PASS
 NoC router functional smoke test: PASS
+NoC router regression: 54/54 checks PASS
+RR post-service pointer transition SVA: PASS
 ```
 
 The interface contract is frozen in:
