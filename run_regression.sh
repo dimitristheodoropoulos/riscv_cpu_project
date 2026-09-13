@@ -333,6 +333,83 @@ run_formal_layer() {
     return $?
 }
 
+run_noc() {
+    local report_file="$OUTPUT_DIR/noc_regression_report.txt"
+    local router_log="$OUTPUT_DIR/noc_router_regression.log"
+    local mesh_log="$OUTPUT_DIR/noc_mesh_2x2_regression.log"
+    local router_vvp="/tmp/noc_router_tb_regression.vvp"
+    local mesh_vvp="/tmp/noc_mesh_2x2_tb_regression.vvp"
+    local router_rc=0
+    local mesh_rc=0
+
+    echo ""
+    echo "========================================"
+    echo "NOC REGRESSION"
+    echo "========================================"
+
+    {
+        echo "Regression: target=noc"
+        echo "Date: $(timestamp)"
+        echo "----------------------------------------"
+        echo "Router: tests/noc_router_tb.sv"
+        echo "Mesh  : tests/noc_mesh_2x2_tb.sv"
+    } > "$report_file"
+
+    echo ""
+    echo ">>> NOC ROUTER"
+    if ! iverilog -g2012 -Wall         -I "$PROJECT_ROOT/tests"         -I "$PROJECT_ROOT/rtl"         -s noc_router_tb         -o "$router_vvp"         "$PROJECT_ROOT/rtl/noc_router.sv"         "$PROJECT_ROOT/tests/noc_router_tb.sv"         > "$router_log" 2>&1
+    then
+        router_rc=1
+        echo "NoC router: COMPILE FAIL"
+        echo "Router: COMPILE FAIL" >> "$report_file"
+        cat "$router_log"
+    elif ! vvp "$router_vvp" >> "$router_log" 2>&1
+    then
+        router_rc=1
+        echo "NoC router: SIMULATION FAIL"
+        echo "Router: SIMULATION FAIL" >> "$report_file"
+        cat "$router_log"
+    else
+        echo "NoC router: PASS"
+        echo "Router: PASS" >> "$report_file"
+    fi
+
+    echo ""
+    echo ">>> NOC 2x2 MESH"
+    if ! iverilog -g2012 -Wall         -I "$PROJECT_ROOT/tests"         -I "$PROJECT_ROOT/rtl"         -s noc_mesh_2x2_tb         -o "$mesh_vvp"         "$PROJECT_ROOT/rtl/noc_router.sv"         "$PROJECT_ROOT/rtl/noc_mesh_2x2.sv"         "$PROJECT_ROOT/tests/noc_mesh_2x2_tb.sv"         > "$mesh_log" 2>&1
+    then
+        mesh_rc=1
+        echo "NoC 2x2 mesh: COMPILE FAIL"
+        echo "Mesh: COMPILE FAIL" >> "$report_file"
+        cat "$mesh_log"
+    elif ! vvp "$mesh_vvp" >> "$mesh_log" 2>&1
+    then
+        mesh_rc=1
+        echo "NoC 2x2 mesh: SIMULATION FAIL"
+        echo "Mesh: SIMULATION FAIL" >> "$report_file"
+        cat "$mesh_log"
+    else
+        echo "NoC 2x2 mesh: PASS"
+        echo "Mesh: PASS" >> "$report_file"
+    fi
+
+    echo ""
+    echo "========================================"
+    echo "NOC REGRESSION SUMMARY"
+    echo "========================================"
+    echo "Router : $([ "$router_rc" -eq 0 ] && echo PASS || echo FAIL)"
+    echo "Mesh   : $([ "$mesh_rc" -eq 0 ] && echo PASS || echo FAIL)"
+    echo "========================================"
+
+    if [ "$router_rc" -eq 0 ] && [ "$mesh_rc" -eq 0 ]; then
+        echo "NOC REGRESSION: PASS" | tee -a "$report_file"
+        return 0
+    fi
+
+    echo "NOC REGRESSION: FAIL" | tee -a "$report_file"
+    return 1
+}
+
 run_target() {
     local target="$1"
 
@@ -396,6 +473,10 @@ run_target() {
             run_formal_layer
             ;;
 
+        noc)
+            run_noc
+            ;;
+
         all)
             local block_rc=0
             local fpu_rc=0
@@ -457,6 +538,7 @@ run_target() {
             echo "  fpu            FPU directed, smoke, long, differential"
             echo "  coverage       FPU coverage closure"
             echo "  formal         Formal regression"
+                echo "  noc            NoC router + 2x2 mesh regression"
             echo "  alu            ALU only"
             echo "  cu             CU only"
             echo "  mmu            MMU only"
