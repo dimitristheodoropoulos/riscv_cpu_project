@@ -560,6 +560,339 @@ module noc_mesh_2x2_tb;
     endtask
 
     // ------------------------------------------------------------
+    // Mesh hotspot contention + intermediate-link backpressure
+    //
+    // Three independent sources target the same destination:
+    //   EP0 -> EP3
+    //   EP1 -> EP3
+    //   EP2 -> EP3
+    //
+    // EP3 is stalled so that R11 becomes blocked.  Observe the
+    // R01->R11 and R10->R11 internal valid/ready links explicitly.
+    //
+    // This is TB-only verification observation; no DUT changes.
+    // ------------------------------------------------------------
+
+    task automatic test_three_way_hotspot_backpressure;
+        noc_packet_t pkt_ep0_ep3;
+        noc_packet_t pkt_ep1_ep3;
+        noc_packet_t pkt_ep2_ep3;
+
+        noc_packet_t held_r01_south_packet;
+        noc_packet_t held_r10_east_packet;
+
+        integer ep3_count;
+        integer cycles;
+        logic seen_txn8;
+        logic seen_txn9;
+        logic seen_txn10;
+        logic observed_r01_backpressure;
+        logic observed_r10_backpressure;
+
+        begin
+            pkt_ep0_ep3.src_id   = 3'd0;
+            pkt_ep0_ep3.dst_id   = 3'd3;
+            pkt_ep0_ep3.txn_id   = 4'h8;
+            pkt_ep0_ep3.payload  = 32'h8000_0001;
+
+            pkt_ep1_ep3.src_id   = 3'd1;
+            pkt_ep1_ep3.dst_id   = 3'd3;
+            pkt_ep1_ep3.txn_id   = 4'h9;
+            pkt_ep1_ep3.payload  = 32'h8000_0002;
+
+            pkt_ep2_ep3.src_id   = 3'd2;
+            pkt_ep2_ep3.dst_id   = 3'd3;
+            pkt_ep2_ep3.txn_id   = 4'hA;
+            pkt_ep2_ep3.payload  = 32'h8000_0003;
+
+            ep3_count = 0;
+            seen_txn8 = 1'b0;
+            seen_txn9 = 1'b0;
+            seen_txn10 = 1'b0;
+            observed_r01_backpressure = 1'b0;
+            observed_r10_backpressure = 1'b0;
+
+            ep3_out_ready = 1'b0;
+
+            // Present all three hotspot contenders concurrently.
+            ep0_in_packet = pkt_ep0_ep3;
+            ep1_in_packet = pkt_ep1_ep3;
+            ep2_in_packet = pkt_ep2_ep3;
+
+            ep0_in_valid = 1'b1;
+            ep1_in_valid = 1'b1;
+            ep2_in_valid = 1'b1;
+
+            // Each source must be accepted by its local router.
+            fork
+                begin
+                    wait (ep0_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep0_in_valid = 1'b0;
+                end
+
+                begin
+                    wait (ep1_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep1_in_valid = 1'b0;
+                end
+
+                begin
+                    wait (ep2_in_ready === 1'b1);
+                    @(posedge clk);
+                    #1;
+                    ep2_in_valid = 1'b0;
+                end
+            join
+
+            #1;
+
+
+
+            // EP3 must remain stalled while the three contenders
+            // propagate toward R11.
+            repeat (6) begin
+                @(posedge clk);
+                #1;
+
+
+                if (ep3_out_valid === 1'b1 &&
+                    ep3_out_ready === 1'b1) begin
+                    $display(
+                        "FAIL: EP3 produced a delivery while EP3 was stalled"
+                    );
+                    $fatal(1);
+                end
+
+                // R01 -> R11 intermediate link.
+                if (dut.r01_south_out_valid === 1'b1) begin
+                    if (dut.r01_south_out_ready === 1'b0) begin
+                        observed_r01_backpressure = 1'b1;
+                    end
+                end
+
+                // R10 -> R11 intermediate link.
+                if (dut.r10_east_out_valid === 1'b1) begin
+                    if (dut.r10_east_out_ready === 1'b0) begin
+                        observed_r10_backpressure = 1'b1;
+                    end
+                end
+            end
+
+            if (dut.r01_south_out_ready !== dut.r11_north_in_ready) begin
+                $display(
+                    "FAIL: R01->R11 ready connection is inconsistent"
+                );
+                $fatal(1);
+            end
+
+            if (dut.r10_east_out_ready !== dut.r11_west_in_ready) begin
+                $display(
+                    "FAIL: R10->R11 ready connection is inconsistent"
+                );
+                $fatal(1);
+            end
+
+            // Capture any currently stalled intermediate packets and
+            // verify that they remain stable while the downstream
+            // destination is blocked.
+            if (dut.r01_south_out_valid === 1'b1 &&
+                dut.r01_south_out_ready === 1'b0) begin
+
+                held_r01_south_packet = dut.r01_south_out_packet;
+
+                repeat (2) begin
+                    @(posedge clk);
+                    #1;
+
+                    if (dut.r01_south_out_valid !== 1'b1) begin
+                        $display(
+                            "FAIL: R01->R11 valid dropped while stalled"
+                        );
+                        $fatal(1);
+                    end
+
+                    if (dut.r01_south_out_packet !==
+                        held_r01_south_packet) begin
+                        $display(
+                            "FAIL: R01->R11 packet changed while stalled"
+                        );
+                        $fatal(1);
+                    end
+
+                    if (dut.r01_south_out_ready !== 1'b0) begin
+                        $display(
+                            "FAIL: R01->R11 ready changed during stall"
+                        );
+                        $fatal(1);
+                    end
+                end
+            end
+
+            if (dut.r10_east_out_valid === 1'b1 &&
+                dut.r10_east_out_ready === 1'b0) begin
+
+                held_r10_east_packet = dut.r10_east_out_packet;
+
+                repeat (2) begin
+                    @(posedge clk);
+                    #1;
+
+                    if (dut.r10_east_out_valid !== 1'b1) begin
+                        $display(
+                            "FAIL: R10->R11 valid dropped while stalled"
+                        );
+                        $fatal(1);
+                    end
+
+                    if (dut.r10_east_out_packet !==
+                        held_r10_east_packet) begin
+                        $display(
+                            "FAIL: R10->R11 packet changed while stalled"
+                        );
+                        $fatal(1);
+                    end
+
+                    if (dut.r10_east_out_ready !== 1'b0) begin
+                        $display(
+                            "FAIL: R10->R11 ready changed during stall"
+                        );
+                        $fatal(1);
+                    end
+                end
+            end
+
+            // At least one of the two intermediate links must have
+            // experienced actual valid/ready backpressure.
+            if (!observed_r01_backpressure &&
+                !observed_r10_backpressure) begin
+                $display(
+                    "FAIL: no intermediate-link backpressure was observed"
+                );
+                $fatal(1);
+            end
+
+            $display(
+                "PASS: three-way EP0/EP1/EP2 -> EP3 hotspot established"
+            );
+
+            if (observed_r01_backpressure) begin
+                $display(
+                    "PASS: R01 -> R11 intermediate backpressure observed"
+                );
+            end
+
+            if (observed_r10_backpressure) begin
+                $display(
+                    "PASS: R10 -> R11 intermediate backpressure observed"
+                );
+            end
+
+            #1;
+
+
+
+            // Release the hotspot destination.
+            ep3_out_ready = 1'b1;
+
+            // Observe deliveries at the actual VALID/READY handshake edge.
+            // The packet is sampled before the clock edge; #1 is used only
+            // after the edge to allow DUT state updates before the next loop.
+            for (cycles = 0; cycles < 20; cycles = cycles + 1) begin
+
+                if (ep3_out_valid === 1'b1 &&
+                    ep3_out_ready === 1'b1) begin
+
+                    ep3_count = ep3_count + 1;
+
+                    if (ep3_out_packet.txn_id === pkt_ep0_ep3.txn_id) begin
+                        if (seen_txn8) begin
+                            $display(
+                                "FAIL: duplicate EP0 -> EP3 transaction"
+                            );
+                            $fatal(1);
+                        end
+
+                        check_packet(
+                            ep3_out_packet,
+                            pkt_ep0_ep3,
+                            "hotspot EP0 -> EP3"
+                        );
+                        seen_txn8 = 1'b1;
+
+                    end else if (
+                        ep3_out_packet.txn_id === pkt_ep1_ep3.txn_id
+                    ) begin
+                        if (seen_txn9) begin
+                            $display(
+                                "FAIL: duplicate EP1 -> EP3 transaction"
+                            );
+                            $fatal(1);
+                        end
+
+                        check_packet(
+                            ep3_out_packet,
+                            pkt_ep1_ep3,
+                            "hotspot EP1 -> EP3"
+                        );
+                        seen_txn9 = 1'b1;
+
+                    end else if (
+                        ep3_out_packet.txn_id === pkt_ep2_ep3.txn_id
+                    ) begin
+                        if (seen_txn10) begin
+                            $display(
+                                "FAIL: duplicate EP2 -> EP3 transaction"
+                            );
+                            $fatal(1);
+                        end
+
+                        check_packet(
+                            ep3_out_packet,
+                            pkt_ep2_ep3,
+                            "hotspot EP2 -> EP3"
+                        );
+                        seen_txn10 = 1'b1;
+
+                    end else begin
+                        $display(
+                            "FAIL: unexpected EP3 transaction id %0d",
+                            ep3_out_packet.txn_id
+                        );
+                        $fatal(1);
+                    end
+                end
+
+                @(posedge clk);
+                #1;
+            end
+
+            if (ep3_count != 3 ||
+                !seen_txn8 ||
+                !seen_txn9 ||
+                !seen_txn10) begin
+                $display(
+                    "FAIL: hotspot delivery count=%0d seen_txn8=%0d seen_txn9=%0d seen_txn10=%0d",
+                    ep3_count,
+                    seen_txn8,
+                    seen_txn9,
+                    seen_txn10
+                );
+                $fatal(1);
+            end
+
+            $display(
+                "PASS: three-way hotspot delivered all packets exactly once"
+            );
+            $display(
+                "PASS: hotspot packet integrity preserved under backpressure"
+            );
+        end
+    endtask
+
+    // ------------------------------------------------------------
     // Test
     // ------------------------------------------------------------
 
@@ -589,6 +922,7 @@ module noc_mesh_2x2_tb;
         test_ep0_to_ep3_backpressure();
         test_parallel_independent_flows();
         test_complete_endpoint_traffic_matrix();
+        test_three_way_hotspot_backpressure();
 
         $display("");
         $display("PASS: NoC 2x2 basic end-to-end datapath test completed");
