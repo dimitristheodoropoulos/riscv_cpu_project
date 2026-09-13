@@ -145,7 +145,7 @@ No production-level deadlock-freedom or arbitrary-traffic liveness claim is made
 |---|---|---|---|
 | NOC-REQ-001 | 2×2 mesh topology shall contain four routers with defined connectivity. | Structural / Integration | VERIFIED |
 | NOC-REQ-002 | Endpoints shall have deterministic source and destination addressing. | Directed / Scoreboard | VERIFIED |
-| NOC-REQ-003 | The NoC shall implement deterministic XY routing within the declared topology. | Directed / Reference Model | PARTIAL |
+| NOC-REQ-003 | The NoC shall implement deterministic XY routing within the declared topology. | Directed / Reference Model | VERIFIED |
 | NOC-REQ-004 | Packet/flit transfer shall use a defined valid/ready handshake. | Directed / SVA | PARTIAL |
 | NOC-REQ-005 | Packets addressed to a locally attached endpoint shall be delivered correctly. | Directed / Scoreboard | VERIFIED |
 | NOC-REQ-006 | One-hop packets shall be routed to the correct output. | Directed / Scoreboard | VERIFIED |
