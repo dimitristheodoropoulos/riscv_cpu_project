@@ -1743,7 +1743,7 @@ project-wide closure.
 | CPU Execution Core verification | ✅ Closed | Closed for defined RV32I execution subset |
 | CPU Execution directed suite | ✅ Passed | 15 tests, 15/15 matches |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
-| CPU DUT ↔ Spike differential | 🟡 Scoped integration PASS; suite not fully green | Real DUT↔Spike integration passes; latest Python suite: 25 passed / 2 test-harness failures |
+| CPU DUT ↔ Spike differential | 🟢 Scoped integration PASS | Real DUT↔Spike integration passes; Python ISS regression: 27/27 tests passed; DUT↔Spike smoke: 7 architectural commits matched with 0 mismatches |
 | CPU Execution Core GLS | ✅ Passed | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
 | AXI4 Master v1 verification | ✅ Passed | Directed standalone + end-to-end Master → Interconnect → real AXI4 slaves within declared single-beat scope |
@@ -1776,7 +1776,7 @@ Completed and near-term activities:
 * Register File verification ✅
 * MMU reset + CPU exec integration ✅
 * CPU Execution Core verification closure ✅
-* CPU DUT ↔ Spike differential verification — scoped integration PASS; Python suite not fully green 🟡
+* CPU DUT ↔ Spike differential verification — scoped integration PASS; Python ISS regression 27/27 🟢
 * CPU Execution Core synthesis + GLS architectural smoke ✅
 * AXI4 UVM verification environment + scoreboard ✅
 * AXI4 protocol SVA + backpressure verification ✅
@@ -2042,7 +2042,7 @@ The current focus includes:
 * MMU reset + integration ✅
 * Register File verification ✅
 * CPU Execution Core RTL coverage closure ✅
-* CPU DUT ↔ Spike differential verification — scoped integration PASS; Python suite not fully green 🟡
+* CPU DUT ↔ Spike differential verification — scoped integration PASS; Python ISS regression 27/27 🟢
 * CPU Execution Core synthesis + GLS architectural smoke ✅
 * AXI4 single-beat slave verification closure ✅
 * AXI4 reachable functional coverage closure ✅
