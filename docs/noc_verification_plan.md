@@ -320,6 +320,21 @@ Regression shall contain:
 
 Failures shall be debugged to root cause before closure.
 
+### Current Contention Coverage Limitation
+
+The current directed v1 regression covers NONE and THREE_WAY contention
+scenarios. TWO_WAY contention is intentionally not claimed as covered.
+
+The existing hotspot creates multiple flows toward the same destination and
+provides useful backpressure and delivery evidence, but the testbench does not
+explicitly observe two simultaneous requesters competing for the same router
+output arbitration point. Independent parallel flows are therefore not used
+as evidence for the TWO_WAY contention bin.
+
+This limitation is documented rather than artificially stimulated. Explicit
+two-way contention coverage requires targeted stimulus together with
+arbitration-point observability.
+
 ## 9. Coverage Closure
 
 Functional coverage shall be closed against the declared v1 coverage model.
@@ -336,7 +351,7 @@ NoC v1 sign-off requires:
 - all mandatory tests PASS
 - all mandatory assertions PASS
 - zero scoreboard mismatches
-- required functional coverage closed
+- required functional coverage closed, except for documented exclusions/waivers
 - documented exclusions/waivers
 - clean regression
 - requirements-to-evidence mapping

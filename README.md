@@ -1234,10 +1234,16 @@ scenario coverage:
 COV-01 source x destination : 16/16
 COV-02 route class           : 3/3
 COV-03 first-hop direction   : 5/5
-COV-04 contention            : 3/3
+COV-04 contention            : 2/3
 COV-05 backpressure          : 3/3
 COV-06 intermediate links    : 2/2
 ```
+
+The contention coverage model currently covers the NONE and THREE_WAY
+bins. The TWO_WAY bin is intentionally left uncovered because the current
+directed hotspot does not explicitly observe two simultaneous requesters at
+the same arbitration point; independent parallel flows are not classified
+as two-way contention.
 
 The 4×4 endpoint matrix is exercised by completed transactions, with each
 source/destination bin observed once:

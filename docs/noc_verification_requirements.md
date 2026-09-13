@@ -181,3 +181,18 @@ NoC v1 shall be considered verified only when:
 
 A requirement shall not be marked VERIFIED without concrete simulation,
 assertion, coverage, or structural evidence supporting the requirement.
+
+## Coverage Limitation / Waiver
+
+The current v1 directed regression covers the NONE and THREE_WAY contention
+scenarios. The TWO_WAY contention bin remains uncovered.
+
+This is an intentional evidence limitation, not an inferred coverage hit:
+the current hotspot establishes multiple flows targeting the same destination
+and observes intermediate backpressure, but it does not explicitly observe
+two simultaneous requesters at the same router output arbitration point.
+Independent parallel flows are therefore not classified as TWO_WAY contention.
+
+Accordingly, NOC-REQ-008 remains PARTIAL and NOC-REQ-015 remains PENDING until
+explicit two-way contention stimulus and arbitration-point observability are
+added. The uncovered bin is documented rather than artificially stimulated.
