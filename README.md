@@ -39,6 +39,7 @@ For the detailed verification strategy and current status, see:
 - `docs/cpu_exec_verification_summary.md`
 - `docs/cpu_exec_formal_verification.md`
 - `docs/CPU_VERIFICATION_SIGNOFF.md` (CPU execution core sign‑off)
+- `docs/memory_controller_requirements.md`
 
 ---
 
@@ -60,6 +61,7 @@ The current primary verification scope covers:
 - Cache V2
 - NoC Router v1
 - NoC 2×2 Mesh v1
+- Memory Controller v1
 
 The AXI4 slave verification scope covers a deliberately constrained
 single-beat AXI4 slave interface, including functional checking,
@@ -119,6 +121,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | NoC Router v1 | `rtl/noc_router.sv` | Self-checking router verification + deterministic XY routing + valid/ready + backpressure + round-robin arbitration + packet integrity + ordering + invalid-destination checks | ✅ Checkpoint passed within declared router scope |
 | NoC 2×2 Mesh v1 | `rtl/noc_mesh_2x2.sv` | Self-checking 2×2 mesh verification + 4×4 endpoint traffic matrix + multi-hop routing + simultaneous flows + hotspot backpressure + packet stability + exactly-once delivery + packet integrity | ✅ Checkpoint passed within declared mesh scope |
 | Power-Aware RTL Mini-Project | `rtl/power_aware/*.sv` | Directed self-checking verification + modeled power sequencing + isolation + save/restore retention | ✅ Passed |
+| Memory Controller v1 | `rtl/memory_controller.sv` | Directed self-checking verification + reference model + WSTRB/partial-write checks + reset/ready checks | ✅ Passed within declared scope |
 
 The status labels intentionally distinguish between:
 
@@ -1753,6 +1756,7 @@ project-wide closure.
 | Cache V2 directed verification | ✅ Passed | 48 PASS records, 0 FAIL records, WSTRB, response stability, memory backpressure, alignment checks |
 | NoC Router v1 verification checkpoint | ✅ Passed | Deterministic XY routing, valid/ready, backpressure stability, round-robin arbitration, bounded service, packet integrity, ordering, invalid-destination handling |
 | NoC 2×2 Mesh v1 verification checkpoint | ✅ Passed | Legal 4×4 endpoint traffic matrix, multi-hop routing, simultaneous flows, hotspot backpressure, packet stability, packet integrity, exactly-once delivery |
+| Memory Controller v1 verification | ✅ Passed | 28 PASS records, 0 FAIL records; byte-enable/WSTRB semantics, partial-write preservation, reset/ready behavior, address coverage within declared scope |
 | Project-wide code coverage consolidation | 🟡 In progress | Individual block/core closure achieved; consolidated project-wide analysis remains |
 | Formal verification | ✅ Partial | ALU 4/4, FPU MUL/DIV invariants PASS |
 | Unified CI regression | 🟡 In progress | Local regression exists |
@@ -1787,6 +1791,7 @@ Completed and near-term activities:
 * NoC Router v1 verification checkpoint ✅
 
 * NoC 2×2 Mesh functional verification checkpoint ✅
+* Memory Controller v1 directed verification checkpoint ✅
 
 ## Phase 2 — Bus and Interconnect Verification
 
@@ -1877,6 +1882,7 @@ riscv_cpu_project/
 │   ├── cache_v2.sv
 │   ├── noc_router.sv
 │   ├── noc_mesh_2x2.sv
+│   ├── memory_controller.sv
 │   ├── axi4/
 │   │   ├── axi4_slave.sv
 │   │   └── axi4_master.sv
@@ -1904,6 +1910,7 @@ riscv_cpu_project/
 │   ├── cache_v2_tb.sv
 │   ├── noc_router_tb.sv
 │   ├── noc_mesh_2x2_tb.sv
+│   ├── memory_controller_tb.sv
 │   ├── reference/
 │   │   ├── generate_fpu_vectors.py
 │   │   ├── generate_fpu_differential_vectors.py
@@ -1978,7 +1985,8 @@ riscv_cpu_project/
 │   ├── noc_verification_requirements.md
 │   ├── noc_verification_plan.md
 │   ├── cache_verification_requirements.md
-│   └── cache_verification_plan.md
+│   ├── cache_verification_plan.md
+│   └── memory_controller_requirements.md
 │
 ├── run_sim.sh
 ├── run_regression.sh
@@ -2054,6 +2062,7 @@ The current focus includes:
 * NoC Router v1 verification checkpoint ✅
 
 * NoC 2×2 Mesh functional verification checkpoint ✅
+* Memory Controller v1 verification checkpoint ✅
 
 The AXI4 Interconnect v1, Cache V2, NoC Router v1, and NoC 2×2 Mesh
 checkpoints are functional verification evidence within their declared
