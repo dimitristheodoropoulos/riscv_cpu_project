@@ -118,6 +118,7 @@ block-level verification rather than broad but shallow CPU coverage.
 | Cache V2 | `rtl/cache_v2.sv` | Directed self-checking verification + memory backpressure + WSTRB + response-stability + alignment checks | ✅ Passed within declared directed scope |
 | NoC Router v1 | `rtl/noc_router.sv` | Self-checking router verification + deterministic XY routing + valid/ready + backpressure + round-robin arbitration + packet integrity + ordering + invalid-destination checks | ✅ Checkpoint passed within declared router scope |
 | NoC 2×2 Mesh v1 | `rtl/noc_mesh_2x2.sv` | Self-checking 2×2 mesh verification + 4×4 endpoint traffic matrix + multi-hop routing + simultaneous flows + hotspot backpressure + packet stability + exactly-once delivery + packet integrity | ✅ Checkpoint passed within declared mesh scope |
+| Power-Aware RTL Mini-Project | `rtl/power_aware/*.sv` | Directed self-checking verification + modeled power sequencing + isolation + save/restore retention | ✅ Passed |
 
 The status labels intentionally distinguish between:
 
