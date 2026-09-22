@@ -563,6 +563,25 @@ PC + instruction + destination register + architectural result
 The Python differential flow compares the DUT commit trace against the
 corresponding Spike execution trace.
 
+An independent custom RV32I software emulator is also implemented as a
+small architectural reference model. Its current scope covers the E1/E2
+subset used by the verification artifact:
+
+```text
+ADDI
+ADD / SUB / AND / OR / XOR / SLL / SRA / SLT
+BEQ
+LW / SW
+architectural PC-relative branches
+sparse aligned 32-bit word memory
+```
+
+The emulator is intentionally independent of the RTL and Spike backend.
+It is used for additional architectural cross-checking rather than as a
+replacement for Spike or as a claim of full RV32I support. The differential
+comparator can compare normalized commit traces together with final PC and
+final integer-register state.
+
 The current differential smoke regression reports:
 
 ```text
@@ -1468,6 +1487,13 @@ tests/cpu_exec_spike_diff_smoke_tb.sv
 
 ```
 
+The custom emulator/reference-model artifact is implemented in:
+
+```text
+scripts/riscv_iss/rv32i_emulator_backend.py
+tests/riscv_iss/test_rv32i_emulator.py
+```
+
 ---
 
 # Functional Coverage
@@ -1923,6 +1949,7 @@ riscv_cpu_project/
 │       ├── test_differential_compare.py
 │       ├── test_differential_fault_injection.py
 │       ├── test_dut_commit_parser.py
+│       ├── test_rv32i_emulator.py
 │       ├── test_dut_spike_integration.py
 │       ├── test_iss_contract.py
 │       └── test_spike_backend.py
@@ -1932,6 +1959,7 @@ riscv_cpu_project/
 │       ├── differential_compare.py
 │       ├── dut_commit_parser.py
 │       ├── iss_contract.py
+│       ├── rv32i_emulator_backend.py
 │       ├── spike_backend.py
 │       ├── spike_commit_parser.py
 │       └── spike_runner.py
