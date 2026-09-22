@@ -12,7 +12,7 @@ The controller provides a single-word memory transaction interface with:
 * `valid/ready` request handshake
 * single outstanding transaction
 * deterministic request completion
-* request/control stability under backpressure
+* valid/ready request protocol with reset-time backpressure
 * reset
 
 The controller is intentionally limited to a simple SRAM-like backing-memory model.
@@ -106,9 +106,10 @@ is true.
 
 For v1, the request handshake is also the transaction-completion event. There is no separate memory response-valid phase.
 
-If `mem_valid=1` and `mem_ready=0`, the request has **not** been accepted and the transaction has not completed.
-
-The controller must not modify memory contents or complete the transaction while the request is stalled.
+If `mem_valid=1` and `mem_ready=0`, the request has **not** been accepted
+and the transaction has not completed. In v1, `mem_ready=0` occurs only
+while reset is asserted; v1 does not implement an internal stalled or busy
+transaction state.
 
 ---
 
@@ -130,13 +131,13 @@ Therefore v1 does not contain a multi-cycle outstanding transaction state after 
 
 The controller shall not accept more than one request on the same clock edge.
 
-When `mem_valid=1` and `mem_ready=0`, the request remains unaccepted and may be presented again with stable request/control signals.
+During reset, a request remains unaccepted because `mem_ready=0`.
 
 ---
 
 ## 6. Request Stability
 
-### MC-REQ-002 — Stable request under backpressure
+### MC-REQ-002 — Stable request under protocol backpressure
 
 When:
 
@@ -146,6 +147,12 @@ mem_ready  = 0
 ```
 
 the controller shall not accept the request.
+
+The v1 controller does not generate internal backpressure after reset:
+`mem_ready` is low during reset and remains asserted after reset release.
+Therefore this requirement defines the valid/ready protocol contract for
+the requester; v1 does not provide a stalled transaction state for the
+verification environment to exercise.
 
 The requester is responsible for maintaining:
 
@@ -324,25 +331,26 @@ is true.
 
 ---
 
-## 12. Backpressure
+## 12. Backpressure and Ready Behavior
 
-### MC-REQ-011 — Request-side backpressure
+### MC-REQ-011 — v1 ready behavior
 
-The controller shall be capable of holding `mem_ready=0` while it is unable to accept a new request.
+The v1 controller shall not generate internal request backpressure.
 
-While a request is being stalled:
+During reset:
 
 ```text
-mem_valid = 1
 mem_ready = 0
 ```
 
-the controller shall not:
+After reset is released:
 
-* modify memory contents
-* consume the request
-* start a second transaction
-* generate a transaction completion
+```text
+mem_ready = 1
+```
+
+The controller therefore has no multi-cycle stalled or busy transaction
+state in v1.
 
 ### MC-REQ-012 — No premature completion
 
@@ -395,33 +403,24 @@ The v1 controller shall be verified at minimum for:
 5. full-word write
 6. partial `WSTRB` write
 7. preservation of disabled bytes
-8. request backpressure
-9. request stability while stalled
-10. no second request while busy
-11. correct read data
-12. no premature transaction completion
-13. aligned access behavior
-14. repeated independent transactions
+8. reset-time request blocking
+9. correct read data
+10. no premature transaction completion
+11. aligned access behavior
+12. repeated independent transactions
 
 The verification environment should use a reference memory/scoreboard rather than relying only on direct signal checks.
 
 ---
 
-## 16. Minimum Assertion Set
+## 16. Assertion Targets
 
-The v1 verification environment should include assertions for at least:
+The following properties define the minimum assertion targets for v1.
+They describe the protocol and data-integrity properties that are applicable
+to the implemented controller. Standalone SVA execution is not required to
+claim the directed v1 verification evidence.
 
-### MC-SVA-001 — No acceptance while not ready
-
-A request is accepted only when:
-
-```text
-mem_valid && mem_ready
-```
-
-### MC-SVA-002 — Single-cycle acceptance
-
-At most one request shall be accepted on any clock edge.
+### MC-SVA-001 — Acceptance requires valid and ready
 
 A request is accepted only when:
 
@@ -429,25 +428,40 @@ A request is accepted only when:
 mem_valid && mem_ready
 ```
 
-is true.
+### MC-SVA-002 — Single-cycle transaction semantics
 
-### MC-SVA-003 — Request stability
-
-If the controller is stalled by:
+For v1, an accepted transaction occurs only on an active clock edge when:
 
 ```text
-mem_valid && !mem_ready
+mem_valid && mem_ready
 ```
 
-the observed request fields must remain stable until acceptance.
+is true. Acceptance and completion occur on that same edge.
+
+### MC-SVA-003 — Reset-time ready behavior
+
+During reset:
+
+```text
+mem_ready = 0
+```
+
+After reset release:
+
+```text
+mem_ready = 1
+```
+
+No internal multi-cycle stalled transaction state exists in v1.
 
 ### MC-SVA-004 — WSTRB byte preservation
 
 For a write transaction, bytes corresponding to `WSTRB=0` must remain unchanged.
 
-### MC-SVA-005 — Reset clears transaction state
+### MC-SVA-005 — Reset leaves no outstanding transaction
 
-Reset shall leave the controller with no outstanding transaction.
+Because v1 has no multi-cycle outstanding transaction state, reset shall
+not permit a request to be accepted while `rst` is asserted.
 
 ---
 
@@ -477,12 +491,11 @@ At minimum:
 
 plus representative multi-byte combinations.
 
-### Backpressure
+### Ready behavior
 
 ```text
-no stall
-single-cycle stall
-multi-cycle stall
+reset:     mem_ready = 0
+post-reset: mem_ready = 1
 ```
 
 ### Address classes
@@ -517,9 +530,9 @@ Memory Controller v1 shall be considered complete only when:
 * directed tests pass with zero failures
 * read/write behavior matches the reference model
 * WSTRB behavior is verified
-* backpressure behavior is verified
+* reset-time request blocking and post-reset ready behavior are verified
 * single-cycle request acceptance behavior is verified
-* required assertions pass
+* applicable protocol requirements are verified
 * no unintended multiple acceptance is observed on a single clock edge
 * `git diff --check` is clean
 * evidence is documented without claiming unsupported features
@@ -539,36 +552,3 @@ No Cache V2 redesign is required.
 No DDR/PHY complexity is required.
 
 No additional protocol is introduced unless a concrete limitation is discovered during implementation or verification.
-```
-
----
-
-## Σύνοψη Αλλαγών
-
-| Section | Παλιό | Νέο |
-|---------|-------|-----|
-| **§5 MC-REQ-001** | `IDLE → BUSY → IDLE` FSM με multi-cycle outstanding state | «single-cycle acceptance» — acceptance = completion, no multi-cycle state |
-| **§11 MC-REQ-010** | «according to the controller's defined request-handshake/completion timing» — αόριστο | «on the same active clock edge on which `mem_valid && mem_ready && mem_write` is true» — ρητό |
-| **§16 MC-SVA-002** | «Single outstanding transaction» — multi-cycle wording | «Single-cycle acceptance» — ρητό single-edge semantics |
-| **§18 Completion Criteria** | «single-outstanding behavior», «no unintended second transaction» | «single-cycle request acceptance behavior», «no unintended multiple acceptance on a single clock edge» |
-
-**Τι ΔΕΝ άλλαξε:**
-
-- Cache V2 interface
-- Όλα τα άλλα requirements (MC-REQ-002 έως 009, 011 έως 014)
-- Backpressure semantics
-- Reset semantics
-- Coverage targets
-
-**Τελική εικόνα:**
-
-```text
-memory_controller_requirements.md
-    │
-    ├── §4  Handshake: acceptance = completion (v1)
-    ├── §5  MC-REQ-001: single-cycle acceptance (no BUSY state)
-    ├── §10 MC-REQ-008: alignment = supported-contract assumption
-    ├── §11 MC-REQ-009: read-data on same edge as handshake
-    ├── §11 MC-REQ-010: write-completion on same edge as handshake
-    ├── §16 MC-SVA-002: single-cycle acceptance
-    └── §18 Completion: single-cycle request acceptance
