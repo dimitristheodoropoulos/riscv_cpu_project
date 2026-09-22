@@ -46,6 +46,26 @@ module power_aware_tb;
         .data_out     (data_out)
     );
 
+    power_aware_sva u_sva (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .domain_on          (domain_on),
+        .isolation_en       (isolation_en),
+        .save_req           (save_req),
+        .restore_req        (restore_req),
+        .switchable_data_out(switchable_data_out),
+        .data_out           (data_out)
+    );
+
+`ifdef ENABLE_POWER_AWARE_COVERAGE
+    power_aware_coverage u_coverage (
+        .domain_on    (domain_on),
+        .isolation_en (isolation_en),
+        .save_req     (save_req),
+        .restore_req  (restore_req)
+    );
+`endif
+
     always #5 clk = ~clk;
 
     task automatic check_outputs(
@@ -56,6 +76,9 @@ module power_aware_tb;
         input logic [7:0] exp_data_out
     );
         begin
+`ifdef ENABLE_POWER_AWARE_COVERAGE
+            u_coverage.sample();
+`endif
             if (domain_on !== exp_domain_on) begin
                 $display("ERROR: domain_on expected=%0b actual=%0b",
                          exp_domain_on, domain_on);
