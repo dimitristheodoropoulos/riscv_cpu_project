@@ -145,3 +145,5 @@ formal/*/*/*/
 # Backup files
 *.bak
 *.log
+
+obj_dir/

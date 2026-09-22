@@ -858,9 +858,11 @@ and zero warnings.
 
 ## Functional Coverage Closure
 
-Because the available Questa Starter license does not provide executable
-SystemVerilog covergroup support, the AXI4 environment uses explicit
-executable counters and cross-coverage matrices.
+The installed Questa Starter environment accepts native SystemVerilog
+`covergroup`/`coverpoint` constructs during compilation, but the coverage
+runtime benchmark could not execute because the required `svverification`
+license feature was unavailable. The AXI4 environment therefore uses
+explicit executable counters and cross-coverage matrices.
 
 The functional coverage model contains:
 
