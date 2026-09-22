@@ -13,10 +13,11 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from differential_compare import (  # noqa: E402
     PROGRAM_BASE,
+    compare_results,
     compare_traces,
     normalize_spike_trace,
 )
-from iss_contract import ISSCommit  # noqa: E402
+from iss_contract import ISSCommit, ISSResult, ISSStatus  # noqa: E402
 
 
 def dut_trace():
@@ -157,6 +158,84 @@ def test_value_mismatch():
 
     assert not result.passed
     assert result.mismatches[0].field == "value"
+
+
+def result_from_trace(trace, final_pc=0x0000000C):
+    final_int_regs = [0] * 32
+
+    for commit in trace:
+        if commit.rd_valid and commit.rd != 0:
+            final_int_regs[commit.rd] = commit.value
+
+    return ISSResult(
+        status=ISSStatus.PASS,
+        final_pc=final_pc,
+        final_int_regs=tuple(final_int_regs),
+        executed_count=len(trace),
+        trace=trace,
+    )
+
+
+def test_matching_results_pass():
+    expected = result_from_trace(dut_trace())
+    observed = result_from_trace(dut_trace())
+
+    result = compare_results(expected, observed)
+
+    assert result.passed
+    assert result.mismatches == ()
+
+
+def test_final_pc_mismatch():
+    expected = result_from_trace(dut_trace(), final_pc=0x0000000C)
+    observed = result_from_trace(dut_trace(), final_pc=0x00000010)
+
+    result = compare_results(expected, observed)
+
+    assert not result.passed
+    assert result.mismatches[0].field == "final_pc"
+    assert result.mismatches[0].expected == 0x0000000C
+    assert result.mismatches[0].observed == 0x00000010
+
+
+def test_final_register_mismatch():
+    expected = result_from_trace(dut_trace())
+    observed_regs = list(expected.final_int_regs)
+    observed_regs[5] = 0xDEADBEEF
+
+    observed = ISSResult(
+        status=ISSStatus.PASS,
+        final_pc=expected.final_pc,
+        final_int_regs=tuple(observed_regs),
+        executed_count=expected.executed_count,
+        trace=expected.trace,
+    )
+
+    result = compare_results(expected, observed)
+
+    assert not result.passed
+    assert result.mismatches[0].field == "final_int_regs[5]"
+    assert result.mismatches[0].expected == 0x0F
+    assert result.mismatches[0].observed == 0xDEADBEEF
+
+
+def test_compare_results_preserves_trace_mismatch_detection():
+    expected = result_from_trace(dut_trace())
+    observed_trace = list(dut_trace())
+    observed_trace[1] = ISSCommit(
+        pc=observed_trace[1].pc,
+        instruction=observed_trace[1].instruction,
+        rd_valid=True,
+        rd=5,
+        value=observed_trace[1].value,
+    )
+    observed = result_from_trace(tuple(observed_trace))
+
+    result = compare_results(expected, observed)
+
+    assert not result.passed
+    assert result.mismatches[0].field == "rd"
+    assert result.mismatches[0].commit_index == 1
 
 
 if __name__ == "__main__":
