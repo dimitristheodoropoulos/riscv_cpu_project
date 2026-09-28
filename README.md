@@ -1409,6 +1409,98 @@ The Register File has been covered at standalone level with:
 
 ---
 
+# UVM Register Abstraction Layer (RAL)
+
+A standard UVM Register Abstraction Layer (RAL) has been added for the
+RISC-V CPU register file.
+
+## RAL Model
+
+The RAL model uses the standard UVM register model classes:
+
+```text
+riscv_reg
+    │
+    └── riscv_reg_block
+          ├── x0 ... x31
+          └── f0 ... f31
+```
+
+Each register is modeled as a 32-bit `uvm_reg` with a single 32-bit
+`uvm_reg_field`.
+
+The register access policy is:
+
+* `x0`: read-only
+* `x1`–`x31`: read/write
+* `f0`–`f31`: read/write
+* all registers reset to `0x00000000`
+
+## Register Map
+
+The RAL address map is:
+
+| Register range |   Address range | Access                 |
+| -------------- | --------------: | ---------------------- |
+| `x0`–`x31`     | `0x000`–`0x07C` | `x0` RO, `x1`–`x31` RW |
+| `f0`–`f31`     | `0x080`–`0x0FC` | RW                     |
+
+The register map uses 32-bit registers with 4-byte addressing and
+little-endian byte ordering.
+
+## Access Mechanism
+
+The CPU register file does not expose an APB, AXI, or AHB memory-mapped
+register interface. Therefore, the RAL layer uses a custom DUT-backed
+access mechanism rather than a bus protocol adapter.
+
+The access path is:
+
+```text
+              UVM RAL
+                 │
+          uvm_reg / reg_block
+                 │
+          uvm_reg_adapter
+                 │
+      riscv_ral_access_item
+                 │
+       RAL sequencer / driver
+                 │
+          cpu_exec_if
+                 │
+                DUT
+```
+
+Writes use the existing `reg_init_*` DUT interface to initialize register
+state. Reads observe the DUT register-file arrays exposed through
+`cpu_exec_if`.
+
+This provides UVM RAL frontdoor transactions while preserving the
+existing CPU execution verification environment and avoiding a second
+active register-file master in the CPU execution agent.
+
+## Verification Evidence
+
+The RAL implementation was verified incrementally:
+
+* **M4 — RAL semantic verification:** register access policies, addresses,
+  widths, reset values, fields, and reverse address-map lookup verified
+  for all 64 registers.
+* **M5.1 — RAL environment connectivity:** RAL block, adapter, sequencer,
+  and driver connectivity verified.
+* **M5.2 — RAL frontdoor integration:** RAL writes and reads verified
+  against DUT-backed `x5` and `f7` accesses; the `x0` invariant was also
+  checked.
+* **Existing CPU regression:** 17/17 expected transactions matched with
+  0 mismatches after RAL integration.
+
+The RAL verification was performed with the built-in Questa UVM 1.1d
+environment. The existing CPU verification flow and `run_sim.sh` remain
+unchanged.
+
+---
+
 # Verification Methodology
 
 ## Directed Testing
