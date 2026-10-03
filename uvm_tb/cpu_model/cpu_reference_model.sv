@@ -121,6 +121,10 @@ package cpu_model_pkg;
 
             bit signed [31:0] imm_i;
             bit signed [31:0] imm_s;
+            bit signed [31:0] imm_b;
+
+            bit              branch_taken;
+            bit [31:0]       next_pc;
 
             bit [31:0] addr;
 
@@ -146,6 +150,9 @@ package cpu_model_pkg;
                 rs2_data = 32'h00000000;
             else
                 rs2_data = regs[rs2];
+
+            // Default sequential PC.
+            next_pc = pc + 32'd4;
 
             // ----------------------------------------------------
             // Decode / execute
@@ -340,6 +347,64 @@ package cpu_model_pkg;
 
                 end
 
+                // ------------------------------------------------
+                // B-type conditional branches
+                //
+                // BEQ
+                // BNE
+                // BLT
+                // BGE
+                //
+                // opcode = 1100011
+                // ------------------------------------------------
+                7'b1100011: begin
+
+                    imm_b =
+                        $signed({
+                            {19{instr[31]}},
+                            instr[31],
+                            instr[7],
+                            instr[30:25],
+                            instr[11:8],
+                            1'b0
+                        });
+
+                    branch_taken = 1'b0;
+
+                    case (funct3)
+
+                        // BEQ
+                        3'b000:
+                            branch_taken =
+                                (rs1_data == rs2_data);
+
+                        // BNE
+                        3'b001:
+                            branch_taken =
+                                (rs1_data != rs2_data);
+
+                        // BLT
+                        3'b100:
+                            branch_taken =
+                                ($signed(rs1_data) <
+                                 $signed(rs2_data));
+
+                        // BGE
+                        3'b101:
+                            branch_taken =
+                                ($signed(rs1_data) >=
+                                 $signed(rs2_data));
+
+                        default:
+                            branch_taken = 1'b0;
+
+                    endcase
+
+                    if (branch_taken)
+                        next_pc = pc + imm_b;
+
+                end
+
                 default: begin
                     // Unsupported instruction / NOP.
                 end
@@ -361,7 +426,7 @@ package cpu_model_pkg;
             // ----------------------------------------------------
 
             if (instr != 32'h00000000)
-                pc = pc + 32'd4;
+                pc = next_pc;
 
         endfunction
 

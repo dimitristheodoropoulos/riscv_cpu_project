@@ -129,6 +129,42 @@ package cpu_exec_sequence_pkg;
 
 
         // ============================================================
+        // Helper: encode an RV32I B-type branch instruction
+        //
+        // Branch immediate layout:
+        //   imm[12] | imm[10:5] | rs2 | rs1 | funct3 | imm[4:1] | imm[11] | opcode
+        //
+        // Supported here: BEQ, BNE, BLT, BGE.
+        // ============================================================
+
+        function automatic [31:0] encode_branch(
+            input logic [2:0] funct3,
+            input logic [4:0] rs1,
+            input logic [4:0] rs2,
+            input integer     imm
+        );
+
+            logic [12:0] bimm;
+
+            begin
+                bimm = imm[12:0];
+
+                encode_branch = {
+                    bimm[12],
+                    bimm[10:5],
+                    rs2,
+                    rs1,
+                    funct3,
+                    bimm[4:1],
+                    bimm[11],
+                    7'b1100011
+                };
+            end
+
+        endfunction
+
+
+        // ============================================================
         // Test 1: ADD
         //
         //   ADD x3, x1, x2
@@ -787,7 +823,91 @@ package cpu_exec_sequence_pkg;
 
 
         // ============================================================
-        // Test 10: x0 write suppression
+        // Test 10: SW/LW complementary all-ones data pattern
+        //
+        //   SW x2, 0(x1)
+        //   LW x3, 0(x1)
+        //
+        // This complements TEST 9's 0x12345678 data pattern and
+        // exercises the remaining MMU data_out bit transitions.
+        //
+        // x1 = 16
+        // x2 = 0xFFFFFFFF
+        //
+        // Expected:
+        //   x3       = 0xFFFFFFFF
+        //   memory[16] = 0xFFFFFFFF
+        //
+        // This is a functional data-pattern test, not coverage-only
+        // stimulus: the scoreboard checks the complete architectural
+        // register and memory state.
+        // ============================================================
+
+        task automatic test_sw_lw_all_ones();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_sw_lw_all_ones");
+
+            start_item(tr);
+
+            tr.instr_count = 2;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // SW x2, 0(x1)
+            tr.instr_mem[0] =
+                32'h0020A023;
+
+            // LW x3, 0(x1)
+            tr.instr_mem[1] =
+                32'h0000A183;
+
+            tr.init_int_regs[1] =
+                32'd16;
+
+            tr.init_int_regs[2] =
+                32'hFFFFFFFF;
+
+            tr.expected_pc =
+                32'd8;
+
+            tr.exp_int_regs[1] =
+                32'd16;
+
+            tr.exp_int_regs[2] =
+                32'hFFFFFFFF;
+
+            tr.exp_int_regs[3] =
+                32'hFFFFFFFF;
+
+            // Expected architectural memory update after SW
+            //
+            // SW x2,0(x1)
+            // x1 = 16
+            // therefore:
+            // memory[16] = 0xFFFFFFFF
+
+            tr.exp_mem[16] =
+                32'hFFFFFFFF;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SW/LW ALL-ONES: SW x2,0(x1) followed by LW x3,0(x1) | data=0xFFFFFFFF",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
+        // Test 11: x0 write suppression
         //
         //   ADD x0, x1, x2
         //
@@ -1235,6 +1355,309 @@ package cpu_exec_sequence_pkg;
         endtask
 
 
+        // ============================================================
+        // Test: sequential PC progression across a 16-byte boundary
+        //
+        // Execute five validated ADD instructions sequentially:
+        //
+        //   PC  0 : ADD x3,x1,x2
+        //   PC  4 : ADD x3,x1,x2
+        //   PC  8 : ADD x3,x1,x2
+        //   PC 12 : ADD x3,x1,x2
+        //   PC 16 : ADD x3,x1,x2
+        //
+        // This is a functional instruction-stream test. It verifies
+        // sequential execution beyond the first 16-byte block and
+        // therefore exercises higher PC / next-PC bits.
+        //
+        // Encoding:
+        //   0x002081B3 = ADD x3,x1,x2
+        // ============================================================
+
+        task automatic test_sequential_pc_progression();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_sequential_pc_progression"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 5;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            tr.instr_mem[0] = 32'h002081B3;
+            tr.instr_mem[1] = 32'h002081B3;
+            tr.instr_mem[2] = 32'h002081B3;
+            tr.instr_mem[3] = 32'h002081B3;
+            tr.instr_mem[4] = 32'h002081B3;
+
+            tr.init_int_regs[1] = 32'd5;
+            tr.init_int_regs[2] = 32'd7;
+
+            tr.expected_pc = 32'd20;
+
+            tr.exp_int_regs[1] = 32'd5;
+            tr.exp_int_regs[2] = 32'd7;
+            tr.exp_int_regs[3] = 32'd12;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SEQUENTIAL PC: 5 sequential ADD instructions | final PC=20 | x3=12",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+
+        // ============================================================
+        // Test: extended sequential PC progression through 0x80
+        //
+        // Execute 33 validated ADD instructions sequentially.
+        //
+        //   PC 0x00 ... 0x7C : 32 instructions
+        //   PC 0x80          : 33rd instruction
+        //   final PC         : 0x84 (132)
+        //
+        // This intentionally exercises PC[5], PC[6] and PC[7]
+        // through normal sequential instruction-stream execution.
+        //
+        // Encoding:
+        //   0x002081B3 = ADD x3,x1,x2
+        // ============================================================
+
+        task automatic test_extended_sequential_pc_progression();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_extended_sequential_pc_progression"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 33;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            for (int i = 0; i < 33; i++) begin
+                tr.instr_mem[i] = 32'h002081B3;
+            end
+
+            tr.init_int_regs[1] = 32'd5;
+            tr.init_int_regs[2] = 32'd7;
+
+            tr.expected_pc = 32'd132;
+
+            tr.exp_int_regs[1] = 32'd5;
+            tr.exp_int_regs[2] = 32'd7;
+            tr.exp_int_regs[3] = 32'd12;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST EXTENDED SEQUENTIAL PC: 33 sequential ADD instructions | final PC=132 (0x84) | x3=12",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
+        // Test: directed branch execution
+        //
+        // Covers the four implemented conditional branches with both
+        // taken and not-taken outcomes, plus an unsupported branch
+        // funct3 and a negative branch offset.
+        //
+        // Program flow:
+        //   0x00 : BEQ taken       -> 0x08
+        //   0x08 : BNE taken       -> 0x10
+        //   0x10 : BLT taken       -> 0x18
+        //   0x18 : BGE taken       -> 0x20
+        //   0x20 : BEQ not taken   -> 0x24
+        //   0x24 : BNE not taken   -> 0x28
+        //   0x28 : BLT not taken   -> 0x2C
+        //   0x2C : BGE not taken   -> 0x30
+        //   0x30 : unsupported     -> 0x34
+        //   0x34 : BGE -8          -> 0x2C
+        //
+        // instr_count=14 is required so the driver loads instruction
+        // memory through PC=0x34. The 14 execution cycles end at
+        // PC=0x2C, as independently predicted by the reference model.
+        // ============================================================
+
+        task automatic test_branch_execution();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_branch_execution"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 14;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            tr.instr_mem[0]  = encode_branch(3'b000, 5'd1,  5'd2,  8);
+            tr.instr_mem[2]  = encode_branch(3'b001, 5'd3,  5'd4,  8);
+            tr.instr_mem[4]  = encode_branch(3'b100, 5'd5,  5'd6,  8);
+            tr.instr_mem[6]  = encode_branch(3'b101, 5'd7,  5'd8,  8);
+            tr.instr_mem[8]  = encode_branch(3'b000, 5'd9,  5'd10, 4);
+            tr.instr_mem[9]  = encode_branch(3'b001, 5'd11, 5'd12, 4);
+            tr.instr_mem[10] = encode_branch(3'b100, 5'd13, 5'd14, 4);
+            tr.instr_mem[11] = encode_branch(3'b101, 5'd15, 5'd16, 4);
+            tr.instr_mem[12] = encode_branch(3'b010, 5'd1,  5'd2,  4);
+            tr.instr_mem[13] = encode_branch(3'b101, 5'd7,  5'd8, -8);
+
+            tr.init_int_regs[1]  = 32'd10;
+            tr.init_int_regs[2]  = 32'd10;
+
+            tr.init_int_regs[3]  = 32'd10;
+            tr.init_int_regs[4]  = 32'd20;
+
+            tr.init_int_regs[5]  = 32'hFFFFFFFB;
+            tr.init_int_regs[6]  = 32'd5;
+
+            tr.init_int_regs[7]  = 32'd5;
+            tr.init_int_regs[8]  = 32'hFFFFFFFB;
+
+            tr.init_int_regs[9]  = 32'd10;
+            tr.init_int_regs[10] = 32'd20;
+
+            tr.init_int_regs[11] = 32'd10;
+            tr.init_int_regs[12] = 32'd10;
+
+            tr.init_int_regs[13] = 32'd10;
+            tr.init_int_regs[14] = 32'd5;
+
+            tr.init_int_regs[15] = 32'd5;
+            tr.init_int_regs[16] = 32'd10;
+
+            tr.expected_pc = 32'd44;
+
+            foreach (tr.init_int_regs[i])
+                tr.exp_int_regs[i] = tr.init_int_regs[i];
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST BRANCH EXECUTION: BEQ/BNE/BLT/BGE taken+not-taken, unsupported funct3, negative offset | final PC=44 (0x2C)",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
+        // Test: coverage closure for instruction/register fields
+        //
+        // Purpose:
+        //   Close reachable DUT toggle residuals without artificial
+        //   or misaligned taken-branch targets.
+        //
+        // Program flow:
+        //   0x00 : ADD x4,  x16, x3
+        //   0x04 : ADD x8,  x16, x3
+        //   0x08 : ADD x16, x16, x3
+        //   0x0C : BEQ x16, x3, +6  (not taken)
+        //   0x10 : ADD x4,  x16, x3
+        //
+        // The +6 B-immediate exercises imm_ext[1], but the branch is
+        // not taken, so the PC remains word-aligned.
+        //
+        // Target residuals:
+        //   instruction[19] / rs1[4]
+        //   instruction[20] / rs2[0]
+        //   rd[2], rd[3], rd[4]
+        //   imm_ext[1]
+        //   branch 1->0
+        //   instruction[6] 1->0
+        // ============================================================
+
+        task automatic test_coverage_closure_fields();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create(
+                    "tr_coverage_closure_fields"
+                );
+
+            start_item(tr);
+
+            tr.instr_count = 5;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // ADD x4, x16, x3
+            tr.instr_mem[0] = 32'h00380233;
+
+            // ADD x8, x16, x3
+            tr.instr_mem[1] = 32'h00380433;
+
+            // ADD x16, x16, x3
+            tr.instr_mem[2] = 32'h00380833;
+
+            // BEQ x16, x3, +6
+            // x16=11, x3=1 -> not taken.
+            // The encoded immediate has imm[1]=1.
+            tr.instr_mem[3] =
+                encode_branch(3'b000, 5'd16, 5'd3, 6);
+
+            // ADD x4, x16, x3
+            // This also provides branch 1->0 and instruction[6] 1->0.
+            tr.instr_mem[4] = 32'h00380233;
+
+            // Initial architectural state.
+            tr.init_int_regs[3]  = 32'd1;
+            tr.init_int_regs[16] = 32'd10;
+
+            tr.expected_pc = 32'd20;
+
+            foreach (tr.init_int_regs[i])
+                tr.exp_int_regs[i] = tr.init_int_regs[i];
+
+            // Expected architectural results.
+            tr.exp_int_regs[4]  = 32'd12;
+            tr.exp_int_regs[8]  = 32'd11;
+            tr.exp_int_regs[16] = 32'd11;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST COVERAGE CLOSURE: rs1[4]/rs2[0]/rd[2:4], imm_ext[1], branch 1->0 and instruction[6] 1->0",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
         task body();
 
             `uvm_info(
@@ -1277,6 +1700,8 @@ package cpu_exec_sequence_pkg;
 
             test_sw_lw();
 
+            test_sw_lw_all_ones();
+
 
             // --------------------------------------------------------
             // Register-file architectural x0 behavior
@@ -1305,6 +1730,14 @@ package cpu_exec_sequence_pkg;
             // --------------------------------------------------------
 
             test_fp_reg_init();
+
+            test_sequential_pc_progression();
+
+            test_extended_sequential_pc_progression();
+
+            test_branch_execution();
+
+            test_coverage_closure_fields();
 
 
             `uvm_info(

@@ -142,7 +142,8 @@ module cpu_exec_branch_smoke_tb;
      * PC 36: BNE x1,x1,+8   -> not taken -> PC 40
      * PC 40: BLT x4,x3,+8   -> not taken -> PC 44
      * PC 44: BGE x3,x4,+8   -> not taken -> PC 48
-     * PC 48: BGE x5,x6,-8   -> taken     -> PC 40
+     * PC 48: unsupported branch funct3=010 -> not taken -> PC 52
+     * PC 52: BGE x5,x6,-8   -> taken     -> PC 44
      *
      * x3 = -5, x4 = +5, therefore:
      *   BLT x3,x4  -> taken
@@ -240,8 +241,13 @@ module cpu_exec_branch_smoke_tb;
 
         program_instruction(
             6'd12,
+            enc_branch(3'b010, 5'd1, 5'd2, 13'd8)
+        ); // Unsupported branch funct3=010 -> default -> not taken
+
+        program_instruction(
+            6'd13,
             enc_branch(3'b101, 5'd5, 5'd6, -8)
-        ); // BGE x5,x6,-8
+        ); // BGE x5,x6,-8 -> PC 44
 
         @(negedge clk);
         execution_enable = 1'b1;
@@ -303,11 +309,25 @@ module cpu_exec_branch_smoke_tb;
         check_pc(32'd48, "BGE signed not taken (+4)");
 
         /*
-         * PC 48: BGE x5,x6,-8 taken -> 40
+         * PC 48: unsupported branch funct3=010 -> 52
+         *
+         * The CU still identifies the opcode as a branch, but
+         * cpu_exec_core has no supported case for funct3=010.
+         * Therefore branch_taken remains 0 and execution advances
+         * sequentially by 4 bytes.
          */
         @(posedge clk);
         #1;
-        check_pc(32'd40, "BGE taken (-8)");
+        check_pc(32'd52, "Unsupported branch funct3=010 -> +4");
+
+        /*
+         * PC 52: BGE x5,x6,-8 taken -> 44
+         *
+         * Retains explicit negative-offset branch coverage.
+         */
+        @(posedge clk);
+        #1;
+        check_pc(32'd44, "BGE taken (-8)");
 
 
         if (errors == 0) begin
