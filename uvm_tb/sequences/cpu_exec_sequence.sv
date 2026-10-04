@@ -1497,8 +1497,9 @@ package cpu_exec_sequence_pkg;
         //   0x34 : BGE -8          -> 0x2C
         //
         // instr_count=14 is required so the driver loads instruction
-        // memory through PC=0x34. The 14 execution cycles end at
-        // PC=0x2C, as independently predicted by the reference model.
+        // memory through PC=0x34. The 14th execution starts at
+        // PC=0x2C and advances to final PC=0x30, as independently
+        // predicted by the reference model.
         // ============================================================
 
         task automatic test_branch_execution();
@@ -1554,7 +1555,7 @@ package cpu_exec_sequence_pkg;
             tr.init_int_regs[15] = 32'd5;
             tr.init_int_regs[16] = 32'd10;
 
-            tr.expected_pc = 32'd44;
+            tr.expected_pc = 32'd48;
 
             foreach (tr.init_int_regs[i])
                 tr.exp_int_regs[i] = tr.init_int_regs[i];
@@ -1563,7 +1564,7 @@ package cpu_exec_sequence_pkg;
 
             `uvm_info(
                 "CPU_EXEC_SEQUENCE",
-                "TEST BRANCH EXECUTION: BEQ/BNE/BLT/BGE taken+not-taken, unsupported funct3, negative offset | final PC=44 (0x2C)",
+                "TEST BRANCH EXECUTION: BEQ/BNE/BLT/BGE taken+not-taken, unsupported funct3, negative offset | final PC=48 (0x30)",
                 UVM_MEDIUM
             )
 
