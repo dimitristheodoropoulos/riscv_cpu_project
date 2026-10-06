@@ -11,6 +11,7 @@ package cpu_exec_test_pkg;
     import cpu_agent_pkg::*;
     import cpu_env_pkg::*;
     import cpu_exec_sequence_pkg::*;
+    import cpu_exec_random_sequence_pkg::*;
 
     // ------------------------------------------------------------
     // CPU Execution Test
@@ -81,24 +82,44 @@ package cpu_exec_test_pkg;
 
         task run_phase(uvm_phase phase);
 
-            cpu_exec_sequence seq;
-
             phase.raise_objection(this);
 
-            `uvm_info(
-                "CPU_EXEC_TEST",
-                "Starting CPU execution sequence",
-                UVM_MEDIUM
-            )
+            if ($test$plusargs("CPU_EXEC_RANDOM")) begin
+                cpu_exec_random_sequence random_seq;
 
-            seq =
-                cpu_exec_sequence::type_id::create(
-                    "seq"
+                `uvm_info(
+                    "CPU_EXEC_TEST",
+                    "Starting controlled-random CPU sequence",
+                    UVM_MEDIUM
+                )
+
+                random_seq =
+                    cpu_exec_random_sequence::type_id::create(
+                        "random_seq"
+                    );
+
+                random_seq.start(
+                    env.agent.sequencer
                 );
+            end
+            else begin
+                cpu_exec_sequence seq;
 
-            seq.start(
-                env.agent.sequencer
-            );
+                `uvm_info(
+                    "CPU_EXEC_TEST",
+                    "Starting CPU execution sequence",
+                    UVM_MEDIUM
+                )
+
+                seq =
+                    cpu_exec_sequence::type_id::create(
+                        "seq"
+                    );
+
+                seq.start(
+                    env.agent.sequencer
+                );
+            end
 
             `uvm_info(
                 "CPU_EXEC_TEST",

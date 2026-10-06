@@ -91,6 +91,7 @@ cpu_exec)
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_functional_coverage.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_env/cpu_env.sv" \
         "$PROJECT_ROOT/uvm_tb/sequences/cpu_exec_sequence.sv" \
+        "$PROJECT_ROOT/uvm_tb/sequences/cpu_exec_random_sequence.sv" \
         "$PROJECT_ROOT/uvm_tb/tests/cpu_exec_test.sv" \
         "$PROJECT_ROOT/uvm_tb/cpu_agent/cpu_exec_uvm_wrapper.sv" \
         "$PROJECT_ROOT/uvm_tb/tb_top_cpu_exec.sv"
