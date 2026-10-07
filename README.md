@@ -623,15 +623,54 @@ Scoreboard summary:
 ```text
 Architectural verification PASSED
 
-Expected transactions : 15
-Observed transactions : 15
-Matches               : 15
+Expected transactions : 25
+Observed transactions : 25
+Matches               : 25
 Mismatches            : 0
 
 UVM_ERROR = 0
 UVM_FATAL = 0
 
 ```
+
+## CPU Execution Functional Coverage
+
+The CPU execution functional coverage model tracks:
+
+* supported operation classes;
+* register zero/non-zero classes;
+* operand value classes;
+* signed immediate classes for LW/SW;
+* effective memory-address classes;
+* operation × immediate-class crosses;
+* operation × memory-address-class crosses.
+
+The latest directed regression closes the relevant LW/SW immediate and
+effective-address classes, including:
+
+* zero, positive, negative, minimum (-2048), and maximum (+2047) signed
+  immediates;
+* low, mid, high, and out-of-range effective-address classes;
+* LW/SW cross coverage for the exercised immediate and address classes.
+
+The latest CPU execution regression completed with:
+
+```text
+Expected transactions : 25
+Observed transactions : 25
+Matches               : 25
+Mismatches            : 0
+UVM_ERROR             : 0
+UVM_FATAL             : 0
+```
+
+`IMM_OTHER` is not a required legal LW/SW immediate category because the
+12-bit signed immediate domain is fully partitioned by the defined
+zero/positive/negative/minimum/maximum classes.
+
+Structural RTL toggle coverage remains a non-targeted metric; residual
+toggle bins are analyzed according to architectural reachability and
+verification relevance rather than treated as automatic stimulus gaps.
 
 ## CPU Execution RTL Coverage Closure
 
@@ -1865,7 +1904,7 @@ project-wide closure.
 | Register File verification | ✅ Closed | 12/12 branch coverage standalone |
 | Register File assertions | ✅ Implemented | Independent invariant checking |
 | CPU Execution Core verification | ✅ Closed | Closed for defined RV32I execution subset |
-| CPU Execution directed suite | ✅ Passed | 15 tests, 15/15 matches |
+| CPU Execution directed suite | ✅ Passed | 25 directed tests; 25/25 architectural transactions matched |
 | CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
 | CPU DUT ↔ Spike differential | 🟢 Scoped integration PASS | Real DUT↔Spike integration passes; Python ISS regression: 27/27 tests passed; DUT↔Spike smoke: 7 architectural commits matched with 0 mismatches |
 | CPU Execution Core GLS | ✅ Passed | Yosys synthesis + generic gate-level architectural smoke |
