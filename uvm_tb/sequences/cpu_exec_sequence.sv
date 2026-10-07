@@ -907,6 +907,84 @@ package cpu_exec_sequence_pkg;
 
 
         // ============================================================
+        // Test 11: SW/LW odd immediate offset
+        //
+        //   SW x2, 1(x1)
+        //   LW x3, 1(x1)
+        //
+        // x1 = 16, therefore the effective memory address is 17.
+        // This exercises imm_ext[0] = 1 through both S-type and I-type
+        // immediate generation while verifying the complete memory path.
+        //
+        // Expected:
+        //   x3        = 0x12345678
+        //   memory[17] = 0x12345678
+        // ============================================================
+
+        task automatic test_sw_lw_odd_offset();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_sw_lw_odd_offset");
+
+            start_item(tr);
+
+            tr.instr_count = 2;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // SW x2, 1(x1)
+            tr.instr_mem[0] =
+                32'h0020A0A3;
+
+            // LW x3, 1(x1)
+            tr.instr_mem[1] =
+                32'h0010A183;
+
+            tr.init_int_regs[1] =
+                32'd16;
+
+            tr.init_int_regs[2] =
+                32'h12345678;
+
+            tr.expected_pc =
+                32'd8;
+
+            tr.exp_int_regs[1] =
+                32'd16;
+
+            tr.exp_int_regs[2] =
+                32'h12345678;
+
+            tr.exp_int_regs[3] =
+                32'h12345678;
+
+            // Expected architectural memory update after SW
+            //
+            // SW x2,1(x1)
+            // x1 = 16
+            // therefore:
+            // memory[17] = 0x12345678
+
+            tr.exp_mem[17] =
+                32'h12345678;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SW/LW ODD-OFFSET: SW x2,1(x1) followed by LW x3,1(x1)",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
         // Test 11: x0 write suppression
         //
         //   ADD x0, x1, x2
@@ -926,6 +1004,171 @@ package cpu_exec_sequence_pkg;
         //
         // and therefore verifies the architectural x0 rule.
         // ============================================================
+
+        // ============================================================
+        // Test 12: SW/LW signed immediate coverage
+        //
+        //   SW x2, -1(x1)       -> address 64
+        //   LW x3, -1(x1)       -> address 64
+        //
+        //   x1 = 65
+        //
+        //   SW x2, -2048(x5)    -> address 0
+        //   LW x3, -2048(x5)    -> address 0
+        //
+        // Covers:
+        //   IMM_NEG
+        //   IMM_MIN
+        //   ADDR_MID
+        // ============================================================
+
+        task automatic test_sw_lw_signed_immediates();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_sw_lw_signed_immediates");
+
+            start_item(tr);
+
+            tr.instr_count = 4;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // SW x2, -1(x1)
+            tr.instr_mem[0] =
+                32'hFE20AFA3;
+
+            // LW x3, -1(x1)
+            tr.instr_mem[1] =
+                32'hFFF0A183;
+
+            // SW x2, -2048(x5)
+            tr.instr_mem[2] =
+                32'h8020A023;
+
+            // LW x3, -2048(x5)
+            tr.instr_mem[3] =
+                32'h8000A183;
+
+            tr.init_int_regs[1] =
+                32'd65;
+
+            tr.init_int_regs[2] =
+                32'h13579BDF;
+
+            tr.init_int_regs[5] =
+                32'd2048;
+
+            tr.expected_pc =
+                32'd16;
+
+            tr.exp_int_regs[1] =
+                32'd65;
+
+            tr.exp_int_regs[2] =
+                32'h13579BDF;
+
+            tr.exp_int_regs[3] =
+                32'h13579BDF;
+
+            tr.exp_int_regs[5] =
+                32'd2048;
+
+            // 65 - 1 = 64
+            tr.exp_mem[64] =
+                32'h13579BDF;
+
+            // 2048 - 2048 = 0
+            tr.exp_mem[0] =
+                32'h13579BDF;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SW/LW SIGNED IMM: -1(x1)->64, -2048(x5)->0",
+                UVM_MEDIUM
+            )
+
+        endtask
+
+
+        // ============================================================
+        // Test 13: SW/LW maximum positive immediate
+        //
+        //   SW x2, 2047(x1)
+        //   LW x3, 2047(x1)
+        //
+        //   x1 = -1792
+        //
+        //   -1792 + 2047 = 255
+        //
+        // Covers:
+        //   IMM_MAX
+        //   ADDR_HIGH
+        // ============================================================
+
+        task automatic test_sw_lw_max_immediate();
+
+            cpu_transaction tr;
+
+            tr =
+                cpu_transaction::type_id::create("tr_sw_lw_max_immediate");
+
+            start_item(tr);
+
+            tr.instr_count = 2;
+
+            init_instruction_memory(tr);
+            init_integer_registers(tr);
+            init_expected_integer_registers(tr);
+            init_expected_memory(tr);
+
+            // SW x2, 2047(x1)
+            tr.instr_mem[0] =
+                32'h7E20AFA3;
+
+            // LW x3, 2047(x1)
+            tr.instr_mem[1] =
+                32'h7FF0A183;
+
+            // -1792 = 0xFFFFF900
+            tr.init_int_regs[1] =
+                32'hFFFFF900;
+
+            tr.init_int_regs[2] =
+                32'h2468ACE0;
+
+            tr.expected_pc =
+                32'd8;
+
+            tr.exp_int_regs[1] =
+                32'hFFFFF900;
+
+            tr.exp_int_regs[2] =
+                32'h2468ACE0;
+
+            tr.exp_int_regs[3] =
+                32'h2468ACE0;
+
+            // -1792 + 2047 = 255
+            tr.exp_mem[255] =
+                32'h2468ACE0;
+
+            finish_item(tr);
+
+            `uvm_info(
+                "CPU_EXEC_SEQUENCE",
+                "TEST SW/LW MAX IMM: -1792(x1)+2047 -> address 255",
+                UVM_MEDIUM
+            )
+
+        endtask
+
 
         task automatic test_x0_write();
 
@@ -1702,6 +1945,12 @@ package cpu_exec_sequence_pkg;
             test_sw_lw();
 
             test_sw_lw_all_ones();
+
+            test_sw_lw_odd_offset();
+
+            test_sw_lw_signed_immediates();
+
+            test_sw_lw_max_immediate();
 
 
             // --------------------------------------------------------
