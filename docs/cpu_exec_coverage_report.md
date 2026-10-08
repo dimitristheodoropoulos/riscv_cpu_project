@@ -69,8 +69,10 @@ RTL coverage was collected using Questa coverage analysis.
 |---|---:|
 | Branch Coverage | **63/63 = 100%** |
 | Condition Coverage | **5/5 = 100%** |
-| Expression Coverage | **13/14 = 92.86% raw; one justified waiver** |
+| Expression Coverage | **13/14 = 92.86% raw; one justified unreachable term** |
 | Statement Coverage | **80/80 = 100%** |
+
+After excluding the single justified unreachable expression term, reachable expression coverage is **100%**.
 
 Branch and statement coverage per RTL instance:
 

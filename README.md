@@ -691,8 +691,10 @@ The achieved reachable coverage (after justified waiver) is:
 
 * **Branch**: 63/63 = 100%
 * **Condition**: 5/5 = 100%
-* **Expression**: 13/14 = 92.86% raw, with one justified waiver
+* **Expression**: 13/14 = 92.86% raw; one justified unreachable term
 * **Statement**: 80/80 = 100%
+
+After excluding the single justified unreachable expression term, reachable expression coverage is 100%.
 
 **Waiver detail:**
 In `cpu_exec_core.sv`, the expression `(reg_init_enable ? reg_init_is_fp : is_fp)` has one uncovered input term:

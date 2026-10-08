@@ -256,8 +256,10 @@ The current RTL coverage result is:
 |---|---:|
 | RTL Branch Coverage | **63/63 = 100%** |
 | RTL Condition Coverage | **5/5 = 100%** |
-| RTL Expression Coverage | **13/14 = 92.86% raw; one justified waiver** |
+| RTL Expression Coverage | **13/14 = 92.86% raw; one justified unreachable term** |
 | RTL Statement Coverage | **80/80 = 100%** |
+
+After excluding the single justified unreachable expression term, reachable expression coverage is **100%**.
 
 Branch coverage by RTL instance:
 
