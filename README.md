@@ -57,6 +57,9 @@ For the detailed verification strategy and current status, see:
 
 The RTL contains several CPU-related blocks.
 
+The following list identifies the primary CPU-related verification blocks;
+the verification matrix below also tracks additional projects.
+
 The current primary verification scope covers:
 
 - ALU
