@@ -104,11 +104,11 @@ Testbench packages, wrappers and auxiliary UVM code are excluded from the DUT ag
 | `u_rf` | 12/12 100% | 3/3 100% | — | 14/14 100% | 128/192 66.66% |
 | `u_alu` | 11/11 100% | 1/1 100% | 5/5 100% | 14/14 100% | 70/70 100% |
 | `u_mmu` | 5/5 100% | — | 2/2 100% | 9/9 100% | 146/146 100% |
-| `cpu_exec_core` | 30/30 100% | 3/3 100% | 10/11 90.90% | 19/19 100% | 666/776 85.82% |
+| `cpu_exec_core` instance (`/tb_top_cpu_exec/dut_wrapper/dut`; hierarchical toggle scope) | 30/30 100% | 3/3 100% | 10/11 90.90% | 19/19 100% | 666/776 85.82% |
 
 ### 4.2 DUT aggregate
 
-Aggregating the five RTL design units gives:
+The following branch, condition, expression and statement values aggregate the five RTL design units. Toggle is reported separately because the hierarchical instance scopes overlap:
 
 | Metric | Covered / Total | Coverage |
 |---|---:|---:|
@@ -116,9 +116,9 @@ Aggregating the five RTL design units gives:
 | Condition | 7 / 7 | 100.00% |
 | Expression | 17 / 18 | 94.44% |
 | Statement | 95 / 95 | 100.00% |
-| Toggle | 1150 / 1330 | 86.47% |
+| Toggle | Not aggregated | See §6; hierarchical scopes overlap |
 
-The aggregate above is intentionally calculated from the RTL DUT units only. The overall filtered coverage percentage reported by the coverage tool is not used as the DUT sign-off metric because the report also contains testbench and package instances.
+The branch, condition, expression and statement rows above are the RTL DUT aggregate. Toggle coverage is not summed into a single five-unit aggregate: the `cpu_exec_core` instance report includes its child hierarchy, so adding its toggle bins to the separately reported child-instance bins would double-count overlapping scopes. The current hierarchical result is documented separately in §6.
 
 ---
 
@@ -162,11 +162,13 @@ No RTL modification is made to eliminate this residual.
 
 ## 6. Toggle Coverage Residuals
 
-The current DUT toggle coverage is:
+The current coverage report records the following toggle result for the hierarchical instance `/tb_top_cpu_exec/dut_wrapper/dut` (design unit `work.cpu_exec_core`):
 
 ```text
-1150 / 1330 = 86.47%
+666 / 776 = 85.82%
 ```
+
+This is an instance-level hierarchical result, not a weighted aggregate of the five RTL rows. The report also lists the child instances separately; those results overlap with this hierarchy and must not be added to it.
 
 The remaining toggle misses are not treated as a single undifferentiated stimulus gap.
 
@@ -266,7 +268,7 @@ The current CPU execution block satisfies the following evidence-based criteria:
 * All current DUT RTL statements covered: **95/95 (100%)**
 * Expressions substantially covered: **17/18 (94.44%)**
 * One expression residual explicitly documented and justified
-* DUT toggle coverage reported transparently: **1150/1330 (86.47%)**
+* Hierarchical `cpu_exec_core` instance toggle coverage reported transparently: **666/776 (85.82%)**; not presented as a five-unit aggregate
 * Current `cpu_exec_core` branch coverage: **30/30 (100%)**
 * Current assertion coverage: **4/4 (100%)**
 * Directed branch stimulus is connected to the normal CPU execution test path

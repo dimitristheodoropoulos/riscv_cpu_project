@@ -104,7 +104,7 @@ Legend for the **Status** column:
 | Persistent coverage DB | Verified | Not freshly verified | Not applicable |
 | Cross-run merge | Verified | Not freshly verified | Not applicable |
 | Exclusion / waiver files | Verified | Not freshly verified | Not applicable |
-| Per-instance filtered view | Verified (85.83%) | Not freshly verified | Not applicable |
+| Per-instance filtered view | Verified (historical evidence; result provenance not established) | Not freshly verified | Not applicable |
 
 ### 3.7 Debug
 
@@ -209,12 +209,15 @@ keep straight when quoting numbers from this project.
 | RTL-only | same | Statement | 80/80 = 100.00% |
 | RTL-only | same | Toggle (weighted) | 810/1248 = 64.90% |
 | `cpu_exec_core` only | same | Toggle | 470/696 = 67.52% |
-| Full UVM run toggle (different universe) | `cpu_exec_coverage_report.txt` | Toggle | 664/776 = 85.56% |
-| Per-instance filtered view | same | Total | 85.83% |
+| Current report, hierarchical instance `/tb_top_cpu_exec/dut_wrapper/dut` | `cpu_exec_coverage_report.txt` (2026-10-07) | Toggle | 666/776 = 85.82% |
+| Historical per-instance filtered view (scope/provenance not established) | Not established by the current report | Toggle | 85.83% (not used as current sign-off evidence) |
 
-**Do not compare 85.56% to 64.90% directly.** They are different
-denominators over different instance sets. The 203 denominator that has
-occasionally been quoted in earlier drafts is **not present in any
+**Do not compare 85.82% to 64.90% directly.** They represent different
+coverage scopes and denominators: 85.82% is the current hierarchical
+instance result, while 64.90% is the historical weighted RTL-only result.
+The historical 85.83% filtered-view figure has not been tied to a specific
+current artifact and is not used as current sign-off evidence. The 203
+denominator occasionally quoted in earlier drafts is **not present in any
 artifact under `sim/output/`** and must not be used.
 
 ---
@@ -321,8 +324,8 @@ as practical from the simulation backend.
 
 Selected artifacts under `sim/output/` referenced by this document:
 
-- `cpu_exec_coverage_report.txt` (2026-10-03) — current full-run toggle report
-- `cpu_exec.ucdb` (2026-10-03) — coverage database for the current run
+- `cpu_exec_coverage_report.txt` (2026-10-07) — current coverage report; hierarchical DUT-instance toggle result is 666/776 = 85.82%
+- `cpu_exec.ucdb` (2026-10-07) — coverage database corresponding to the current report
 - `cpu_exec_rtl_coverage_summary.txt` (2026-08-18) — per-instance RTL coverage, RTL-only scope
 - `cpu_exec_rtl_only_coverage_summary.txt` (2026-08-18) — weighted RTL-only aggregate
 - `cpu_exec_coverage_report_v2.txt` (2026-08-18) — earlier baseline
