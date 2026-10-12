@@ -1,5 +1,12 @@
 # CPU Execution Core RTL Coverage Report
 
+> **Historical report:** The coverage totals in this document (63/63
+> branches, 5/5 conditions, 13/14 expressions and 80/80 statements) are
+> superseded by the current results in `docs/CPU_VERIFICATION_SIGNOFF.md`.
+> The current UCDB/report files at the paths below are timestamped
+> 7 October 2026; do not interpret this document's older totals as the
+> results of those current artifacts.
+
 ## 1. Scope
 
 This report documents the RTL coverage results for the CPU execution core

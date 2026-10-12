@@ -673,25 +673,29 @@ verification relevance rather than treated as automatic stimulus gaps.
 
 ## CPU Execution RTL Coverage Closure
 
-RTL coverage was collected using Questa Coverage (UCDB).
+Current RTL coverage was collected using Questa Coverage (UCDB).
+The totals below correspond to `sim/output/cpu_exec.ucdb` and
+`sim/output/cpu_exec_coverage_report.txt`, timestamped 7 October 2026.
+The older totals in `docs/cpu_exec_coverage_report.md` are historical
+and are superseded by the current sign-off results.
 
 Verified RTL blocks:
 
 | Block | Branch | Condition | Expression | Statement |
 | --- | --- | --- | --- | --- |
-| `cu` | 16/16 100% | – | – | 34/34 100% |
+| `cu` | 17/17 100% | – | – | 39/39 100% |
 | `register_file` | 12/12 100% | 3/3 100% | – | 14/14 100% |
-| `alu` | 11/11 100% | 1/1 100% | **5/5 100%** | 14/14 100% |
+| `alu` | 11/11 100% | 1/1 100% | 5/5 100% | 14/14 100% |
 | `mmu` | 5/5 100% | – | 2/2 100% | 9/9 100% |
-| `cpu_exec_core` | 19/19 100% | 1/1 100% | **6/7 85.71%** | 9/9 100% |
-| **DUT total** | **63/63 100%** | **5/5 100%** | **13/14 92.86%** | **80/80 100%** |
+| `cpu_exec_core` | 30/30 100% | 3/3 100% | 10/11 90.91% | 19/19 100% |
+| **DUT total** | **75/75 100%** | **7/7 100%** | **17/18 94.44%** | **95/95 100%** |
 
 The achieved reachable coverage (after justified waiver) is:
 
-* **Branch**: 63/63 = 100%
-* **Condition**: 5/5 = 100%
-* **Expression**: 13/14 = 92.86% raw; one justified unreachable term
-* **Statement**: 80/80 = 100%
+* **Branch**: 75/75 = 100%
+* **Condition**: 7/7 = 100%
+* **Expression**: 17/18 = 94.44% raw; one justified unreachable term
+* **Statement**: 95/95 = 100%
 
 After excluding the single justified unreachable expression term, reachable expression coverage is 100%.
 
