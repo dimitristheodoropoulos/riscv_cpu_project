@@ -434,7 +434,6 @@ The latest FPU closure analysis reports:
 | Branch | 96.72% | 100.00% | 6 |
 | Condition Coverage | 88.50% | 100.00% | 13 |
 | Statement Coverage | 95.37% | 100.00% | 17 |
-| Toggle Coverage | 79.95% | - | - |
 
 The waivers are **not** based on merely missing coverage hits.
 
