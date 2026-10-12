@@ -30,6 +30,16 @@ expected behavior is independently modeled, failures are detected,
 coverage is measured, tool limitations are handled, and verification
 closure is approached systematically.
 
+## Verification Highlights
+
+- **FPU differential testing:** 4,154 generated vectors, with zero mismatches.
+- **Python instruction-set simulator:** 27/27 tests passed.
+- **DUT ↔ Spike integration:** 7 architectural commits matched, with zero mismatches.
+- **CPU RTL code coverage:** 75/75 branches, 7/7 conditions, 17/18 expressions, and 95/95 statements covered in the documented scope.
+
+These results apply to their respective verification flows and declared scopes.
+They do not imply complete CPU verification or full IEEE-754 compliance.
+
 For the detailed verification strategy and current status, see:
 
 - `verification_plan.md`
@@ -1909,7 +1919,7 @@ project-wide closure.
 | Register File assertions | ✅ Implemented | Independent invariant checking |
 | CPU Execution Core verification | ✅ Closed | Closed for defined RV32I execution subset |
 | CPU Execution directed suite | ✅ Passed | 25 directed tests; 25/25 architectural transactions matched |
-| CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 63/63 analyzed branches covered |
+| CPU Execution RTL branch analysis | ✅ Closed for analyzed DUT hierarchy | 75/75 analyzed branches covered |
 | CPU DUT ↔ Spike differential | 🟢 Scoped integration PASS | Real DUT↔Spike integration passes; Python ISS regression: 27/27 tests passed; DUT↔Spike smoke: 7 architectural commits matched with 0 mismatches |
 | CPU Execution Core GLS | ✅ Passed | Yosys synthesis + generic gate-level architectural smoke |
 | AXI4 single-beat slave verification | ✅ Closed | UVM + scoreboard + SVA + directed/backpressure/handshake stress |
