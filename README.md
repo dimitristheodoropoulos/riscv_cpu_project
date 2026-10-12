@@ -702,7 +702,6 @@ In `cpu_exec_core.sv`, the expression `(reg_init_enable ? reg_init_is_fp : is_fp
 
 During normal instruction execution, `is_fp` is driven by the Control Unit and is always `0` for the supported RV32I instruction subset. The only way to set `is_fp=1` is through the testbench register‑initialization interface (`reg_init_enable=1, reg_init_is_fp=1`), which has been covered. Therefore the term is unreachable on the normal instruction path. This is a justified waiver; it does not affect functional correctness.
 
-**Toggle coverage**: 814/1248 = 65.22% – treated as a non‑targeted metric rather than a closure criterion.
 
 ## Gate-Level Simulation (GLS)
 
